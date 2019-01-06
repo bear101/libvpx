@@ -9,6 +9,7 @@
  */
 
 #include <string.h>
+#include <tuple>
 
 #include "third_party/googletest/src/include/gtest/gtest.h"
 
@@ -33,10 +34,10 @@ const int kNumBlockEntries = 16;
 
 typedef void (*VP8Quantize)(BLOCK *b, BLOCKD *d);
 
-typedef std::tr1::tuple<VP8Quantize, VP8Quantize> VP8QuantizeParam;
+typedef std::tuple<VP8Quantize, VP8Quantize> VP8QuantizeParam;
 
 using libvpx_test::ACMRandom;
-using std::tr1::make_tuple;
+using std::make_tuple;
 
 // Create and populate a VP8_COMP instance which has a complete set of
 // quantization inputs as well as a second MACROBLOCKD for output.
@@ -200,4 +201,12 @@ INSTANTIATE_TEST_CASE_P(
         make_tuple(&vp8_fast_quantize_b_msa, &vp8_fast_quantize_b_c),
         make_tuple(&vp8_regular_quantize_b_msa, &vp8_regular_quantize_b_c)));
 #endif  // HAVE_MSA
+
+#if HAVE_MMI
+INSTANTIATE_TEST_CASE_P(
+    MMI, QuantizeTest,
+    ::testing::Values(
+        make_tuple(&vp8_fast_quantize_b_mmi, &vp8_fast_quantize_b_c),
+        make_tuple(&vp8_regular_quantize_b_mmi, &vp8_regular_quantize_b_c)));
+#endif  // HAVE_MMI
 }  // namespace

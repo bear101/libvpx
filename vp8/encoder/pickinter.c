@@ -25,6 +25,7 @@
 #include "vp8/common/reconintra4x4.h"
 #include "vpx_dsp/variance.h"
 #include "mcomp.h"
+#include "vp8/common/vp8_skin_detection.h"
 #include "rdopt.h"
 #include "vpx_dsp/vpx_dsp_common.h"
 #include "vpx_mem/vpx_mem.h"
@@ -36,81 +37,8 @@
 extern unsigned int cnt_pm;
 #endif
 
-#define MODEL_MODE 1
-
 extern const int vp8_ref_frame_order[MAX_MODES];
 extern const MB_PREDICTION_MODE vp8_mode_order[MAX_MODES];
-
-// Fixed point implementation of a skin color classifier. Skin color
-// is model by a Gaussian distribution in the CbCr color space.
-// See ../../test/skin_color_detector_test.cc where the reference
-// skin color classifier is defined.
-
-// Fixed-point skin color model parameters.
-static const int skin_mean[5][2] = { { 7463, 9614 },
-                                     { 6400, 10240 },
-                                     { 7040, 10240 },
-                                     { 8320, 9280 },
-                                     { 6800, 9614 } };
-static const int skin_inv_cov[4] = { 4107, 1663, 1663, 2157 };  // q16
-static const int skin_threshold[6] = { 1570636, 1400000, 800000,
-                                       800000,  800000,  800000 };  // q18
-
-// Evaluates the Mahalanobis distance measure for the input CbCr values.
-static int evaluate_skin_color_difference(int cb, int cr, int idx) {
-  const int cb_q6 = cb << 6;
-  const int cr_q6 = cr << 6;
-  const int cb_diff_q12 =
-      (cb_q6 - skin_mean[idx][0]) * (cb_q6 - skin_mean[idx][0]);
-  const int cbcr_diff_q12 =
-      (cb_q6 - skin_mean[idx][0]) * (cr_q6 - skin_mean[idx][1]);
-  const int cr_diff_q12 =
-      (cr_q6 - skin_mean[idx][1]) * (cr_q6 - skin_mean[idx][1]);
-  const int cb_diff_q2 = (cb_diff_q12 + (1 << 9)) >> 10;
-  const int cbcr_diff_q2 = (cbcr_diff_q12 + (1 << 9)) >> 10;
-  const int cr_diff_q2 = (cr_diff_q12 + (1 << 9)) >> 10;
-  const int skin_diff =
-      skin_inv_cov[0] * cb_diff_q2 + skin_inv_cov[1] * cbcr_diff_q2 +
-      skin_inv_cov[2] * cbcr_diff_q2 + skin_inv_cov[3] * cr_diff_q2;
-  return skin_diff;
-}
-
-// Checks if the input yCbCr values corresponds to skin color.
-static int is_skin_color(int y, int cb, int cr, int consec_zeromv) {
-  if (y < 40 || y > 220) {
-    return 0;
-  } else {
-    if (MODEL_MODE == 0) {
-      return (evaluate_skin_color_difference(cb, cr, 0) < skin_threshold[0]);
-    } else {
-      int i = 0;
-      // No skin if block has been zero motion for long consecutive time.
-      if (consec_zeromv > 60) return 0;
-      // Exit on grey.
-      if (cb == 128 && cr == 128) return 0;
-      // Exit on very strong cb.
-      if (cb > 150 && cr < 110) return 0;
-      for (; i < 5; ++i) {
-        int skin_color_diff = evaluate_skin_color_difference(cb, cr, i);
-        if (skin_color_diff < skin_threshold[i + 1]) {
-          if (y < 60 && skin_color_diff > 3 * (skin_threshold[i + 1] >> 2)) {
-            return 0;
-          } else if (consec_zeromv > 25 &&
-                     skin_color_diff > (skin_threshold[i + 1] >> 1)) {
-            return 0;
-          } else {
-            return 1;
-          }
-        }
-        // Exit if difference is much large than the threshold.
-        if (skin_color_diff > (skin_threshold[i + 1] << 3)) {
-          return 0;
-        }
-      }
-      return 0;
-    }
-  }
-}
 
 static int macroblock_corner_grad(unsigned char *signal, int stride,
                                   int offsetx, int offsety, int sgnx,
@@ -207,8 +135,8 @@ int vp8_skip_fractional_mv_step(MACROBLOCK *mb, BLOCK *b, BLOCKD *d,
   (void)mvcost;
   (void)distortion;
   (void)sse;
-  bestmv->as_mv.row <<= 3;
-  bestmv->as_mv.col <<= 3;
+  bestmv->as_mv.row *= 8;
+  bestmv->as_mv.col *= 8;
   return 0;
 }
 
@@ -245,9 +173,8 @@ static int get_prediction_error(BLOCK *be, BLOCKD *b) {
 
 static int pick_intra4x4block(MACROBLOCK *x, int ib,
                               B_PREDICTION_MODE *best_mode,
-                              const int *mode_costs,
-
-                              int *bestrate, int *bestdistortion) {
+                              const int *mode_costs, int *bestrate,
+                              int *bestdistortion) {
   BLOCKD *b = &x->e_mbd.block[ib];
   BLOCK *be = &x->block[ib];
   int dst_stride = x->e_mbd.dst.y_stride;
@@ -760,27 +687,10 @@ void vp8_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset,
 #endif
 
   // Check if current macroblock is in skin area.
-  {
-    const int y = (x->src.y_buffer[7 * x->src.y_stride + 7] +
-                   x->src.y_buffer[7 * x->src.y_stride + 8] +
-                   x->src.y_buffer[8 * x->src.y_stride + 7] +
-                   x->src.y_buffer[8 * x->src.y_stride + 8]) >>
-                  2;
-    const int cb = (x->src.u_buffer[3 * x->src.uv_stride + 3] +
-                    x->src.u_buffer[3 * x->src.uv_stride + 4] +
-                    x->src.u_buffer[4 * x->src.uv_stride + 3] +
-                    x->src.u_buffer[4 * x->src.uv_stride + 4]) >>
-                   2;
-    const int cr = (x->src.v_buffer[3 * x->src.uv_stride + 3] +
-                    x->src.v_buffer[3 * x->src.uv_stride + 4] +
-                    x->src.v_buffer[4 * x->src.uv_stride + 3] +
-                    x->src.v_buffer[4 * x->src.uv_stride + 4]) >>
-                   2;
-    x->is_skin = 0;
-    if (!cpi->oxcf.screen_content_mode) {
-      int block_index = mb_row * cpi->common.mb_cols + mb_col;
-      x->is_skin = is_skin_color(y, cb, cr, cpi->consec_zero_last[block_index]);
-    }
+  x->is_skin = 0;
+  if (!cpi->oxcf.screen_content_mode) {
+    int block_index = mb_row * cpi->common.mb_cols + mb_col;
+    x->is_skin = cpi->skin_map[block_index];
   }
 #if CONFIG_TEMPORAL_DENOISING
   if (cpi->oxcf.noise_sensitivity) {
@@ -830,10 +740,10 @@ void vp8_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset,
   x->e_mbd.mode_info_context->mbmi.ref_frame = INTRA_FRAME;
 
   /* If the frame has big static background and current MB is in low
-  *  motion area, its mode decision is biased to ZEROMV mode.
-  *  No adjustment if cpu_used is <= -12 (i.e., cpi->Speed >= 12).
-  *  At such speed settings, ZEROMV is already heavily favored.
-  */
+   *  motion area, its mode decision is biased to ZEROMV mode.
+   *  No adjustment if cpu_used is <= -12 (i.e., cpi->Speed >= 12).
+   *  At such speed settings, ZEROMV is already heavily favored.
+   */
   if (cpi->Speed < 12) {
     calculate_zeromv_rd_adjustment(cpi, x, &rd_adjustment);
   }
@@ -1157,10 +1067,12 @@ void vp8_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset,
         rate2 +=
             vp8_mv_bit_cost(&mode_mv[NEWMV], &best_ref_mv, cpi->mb.mvcost, 128);
       }
+        // fall through
 
       case NEARESTMV:
       case NEARMV:
         if (mode_mv[this_mode].as_int == 0) continue;
+        // fall through
 
       case ZEROMV:
 
@@ -1390,9 +1302,9 @@ void vp8_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset,
   update_mvcount(x, &best_ref_mv);
 }
 
-void vp8_pick_intra_mode(MACROBLOCK *x, int *rate_) {
+void vp8_pick_intra_mode(MACROBLOCK *x, int *rate) {
   int error4x4, error16x16 = INT_MAX;
-  int rate, best_rate = 0, distortion, best_sse;
+  int rate_, best_rate = 0, distortion, best_sse;
   MB_PREDICTION_MODE mode, best_mode = DC_PRED;
   int this_rd;
   unsigned int sse;
@@ -1410,23 +1322,23 @@ void vp8_pick_intra_mode(MACROBLOCK *x, int *rate_) {
                                      xd->predictor, 16);
     distortion = vpx_variance16x16(*(b->base_src), b->src_stride, xd->predictor,
                                    16, &sse);
-    rate = x->mbmode_cost[xd->frame_type][mode];
-    this_rd = RDCOST(x->rdmult, x->rddiv, rate, distortion);
+    rate_ = x->mbmode_cost[xd->frame_type][mode];
+    this_rd = RDCOST(x->rdmult, x->rddiv, rate_, distortion);
 
     if (error16x16 > this_rd) {
       error16x16 = this_rd;
       best_mode = mode;
       best_sse = sse;
-      best_rate = rate;
+      best_rate = rate_;
     }
   }
   xd->mode_info_context->mbmi.mode = best_mode;
 
-  error4x4 = pick_intra4x4mby_modes(x, &rate, &best_sse);
+  error4x4 = pick_intra4x4mby_modes(x, &rate_, &best_sse);
   if (error4x4 < error16x16) {
     xd->mode_info_context->mbmi.mode = B_PRED;
-    best_rate = rate;
+    best_rate = rate_;
   }
 
-  *rate_ = best_rate;
+  *rate = best_rate;
 }

@@ -150,7 +150,7 @@ void vp9_pick_filter_level(const YV12_BUFFER_CONFIG *sd, VP9_COMP *cpi,
   VP9_COMMON *const cm = &cpi->common;
   struct loopfilter *const lf = &cm->lf;
 
-  lf->sharpness_level = cm->frame_type == KEY_FRAME ? 0 : cpi->oxcf.sharpness;
+  lf->sharpness_level = 0;
 
   if (method == LPF_PICK_MINIMAL_LPF && lf->filter_level) {
     lf->filter_level = 0;
@@ -169,19 +169,16 @@ void vp9_pick_filter_level(const YV12_BUFFER_CONFIG *sd, VP9_COMP *cpi,
       case VPX_BITS_10:
         filt_guess = ROUND_POWER_OF_TWO(q * 20723 + 4060632, 20);
         break;
-      case VPX_BITS_12:
+      default:
+        assert(cm->bit_depth == VPX_BITS_12);
         filt_guess = ROUND_POWER_OF_TWO(q * 20723 + 16242526, 22);
         break;
-      default:
-        assert(0 &&
-               "bit_depth should be VPX_BITS_8, VPX_BITS_10 "
-               "or VPX_BITS_12");
-        return;
     }
 #else
     int filt_guess = ROUND_POWER_OF_TWO(q * 20723 + 1015158, 18);
 #endif  // CONFIG_VP9_HIGHBITDEPTH
     if (cpi->oxcf.pass == 0 && cpi->oxcf.rc_mode == VPX_CBR &&
+        cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
         cpi->oxcf.content != VP9E_CONTENT_SCREEN && cm->frame_type != KEY_FRAME)
       filt_guess = 5 * filt_guess >> 3;
 

@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VP9_ENCODER_VP9_ENCODEFRAME_H_
-#define VP9_ENCODER_VP9_ENCODEFRAME_H_
+#ifndef VPX_VP9_ENCODER_VP9_ENCODEFRAME_H_
+#define VPX_VP9_ENCODER_VP9_ENCODEFRAME_H_
 
 #include "vpx/vpx_integer.h"
 
@@ -42,10 +42,11 @@ void vp9_encode_tile(struct VP9_COMP *cpi, struct ThreadData *td, int tile_row,
 void vp9_encode_sb_row(struct VP9_COMP *cpi, struct ThreadData *td,
                        int tile_row, int tile_col, int mi_row);
 
-void vp9_set_variance_partition_thresholds(struct VP9_COMP *cpi, int q);
+void vp9_set_variance_partition_thresholds(struct VP9_COMP *cpi, int q,
+                                           int content_state);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // VP9_ENCODER_VP9_ENCODEFRAME_H_
+#endif  // VPX_VP9_ENCODER_VP9_ENCODEFRAME_H_

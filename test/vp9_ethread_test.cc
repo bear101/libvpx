@@ -39,7 +39,7 @@ class VPxFirstPassEncoderThreadTest
         encoding_mode_(GET_PARAM(1)), set_cpu_used_(GET_PARAM(2)) {
     init_flags_ = VPX_CODEC_USE_PSNR;
 
-    new_mt_mode_ = 1;
+    row_mt_mode_ = 1;
     first_pass_only_ = true;
     firstpass_stats_.buf = NULL;
     firstpass_stats_.sz = 0;
@@ -50,7 +50,6 @@ class VPxFirstPassEncoderThreadTest
     InitializeConfig();
     SetMode(encoding_mode_);
 
-    cfg_.g_lag_in_frames = 3;
     cfg_.rc_end_usage = VPX_VBR;
     cfg_.rc_2pass_vbr_minsection_pct = 5;
     cfg_.rc_2pass_vbr_maxsection_pct = 2000;
@@ -81,9 +80,8 @@ class VPxFirstPassEncoderThreadTest
       encoder->Control(VP8E_SET_ARNR_TYPE, 3);
       encoder->Control(VP9E_SET_FRAME_PARALLEL_DECODING, 0);
 
-      // For now, new_mt_mode only works for 2-pass encoding.
       if (encoding_mode_ == ::libvpx_test::kTwoPassGood)
-        encoder->Control(VP9E_SET_NEW_MT, new_mt_mode_);
+        encoder->Control(VP9E_SET_ROW_MT, row_mt_mode_);
 
       encoder_initialized_ = true;
     }
@@ -109,12 +107,12 @@ class VPxFirstPassEncoderThreadTest
   int tiles_;
   ::libvpx_test::TestMode encoding_mode_;
   int set_cpu_used_;
-  int new_mt_mode_;
+  int row_mt_mode_;
   bool first_pass_only_;
   vpx_fixed_buf_t firstpass_stats_;
 };
 
-static void compare_fp_stats(vpx_fixed_buf_t *fp_stats) {
+static void compare_fp_stats(vpx_fixed_buf_t *fp_stats, double factor) {
   // fp_stats consists of 2 set of first pass encoding stats. These 2 set of
   // stats are compared to check if the stats match or at least are very close.
   FIRSTPASS_STATS *stats1 = reinterpret_cast<FIRSTPASS_STATS *>(fp_stats->buf);
@@ -129,8 +127,10 @@ static void compare_fp_stats(vpx_fixed_buf_t *fp_stats) {
     const double *frame_stats2 = reinterpret_cast<double *>(stats2);
 
     for (j = 0; j < kDbl; ++j) {
-      EXPECT_LE(fabs(*frame_stats1 - *frame_stats2),
-                fabs(*frame_stats1) / 10000.0);
+      ASSERT_LE(fabs(*frame_stats1 - *frame_stats2),
+                fabs(*frame_stats1) / factor)
+          << "First failure @ frame #" << i << " stat #" << j << " ("
+          << *frame_stats1 << " vs. " << *frame_stats2 << ")";
       frame_stats1++;
       frame_stats2++;
     }
@@ -144,29 +144,51 @@ static void compare_fp_stats(vpx_fixed_buf_t *fp_stats) {
   fp_stats->sz = 0;
 }
 
+static void compare_fp_stats_md5(vpx_fixed_buf_t *fp_stats) {
+  // fp_stats consists of 2 set of first pass encoding stats. These 2 set of
+  // stats are compared to check if the stats match.
+  uint8_t *stats1 = reinterpret_cast<uint8_t *>(fp_stats->buf);
+  uint8_t *stats2 = stats1 + fp_stats->sz / 2;
+  ::libvpx_test::MD5 md5_row_mt_0, md5_row_mt_1;
+
+  md5_row_mt_0.Add(stats1, fp_stats->sz / 2);
+  const char *md5_row_mt_0_str = md5_row_mt_0.Get();
+
+  md5_row_mt_1.Add(stats2, fp_stats->sz / 2);
+  const char *md5_row_mt_1_str = md5_row_mt_1.Get();
+
+  // Check md5 match.
+  ASSERT_STREQ(md5_row_mt_0_str, md5_row_mt_1_str)
+      << "MD5 checksums don't match";
+
+  // Reset firstpass_stats_ to 0.
+  memset((uint8_t *)fp_stats->buf, 0, fp_stats->sz);
+  fp_stats->sz = 0;
+}
+
 TEST_P(VPxFirstPassEncoderThreadTest, FirstPassStatsTest) {
   ::libvpx_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 60);
 
   first_pass_only_ = true;
   cfg_.rc_target_bitrate = 1000;
 
-  // Test new_mt_mode: 0 vs 1 (threads = 1, tiles_ = 0)
+  // Test row_mt_mode: 0 vs 1 at single thread case(threads = 1, tiles_ = 0)
   tiles_ = 0;
   cfg_.g_threads = 1;
 
-  new_mt_mode_ = 0;
+  row_mt_mode_ = 0;
   init_flags_ = VPX_CODEC_USE_PSNR;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
-  new_mt_mode_ = 1;
+  row_mt_mode_ = 1;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
-  // Compare to check if using or not using new-mt generates matching stats.
-  compare_fp_stats(&firstpass_stats_);
+  // Compare to check if using or not using row-mt generates close stats.
+  ASSERT_NO_FATAL_FAILURE(compare_fp_stats(&firstpass_stats_, 1000.0));
 
-  // Test multi-threads: single thread vs 4 threads
-  new_mt_mode_ = 1;
-  tiles_ = 2;
+  // Test single thread vs multiple threads
+  row_mt_mode_ = 1;
+  tiles_ = 0;
 
   cfg_.g_threads = 1;
   init_flags_ = VPX_CODEC_USE_PSNR;
@@ -175,8 +197,24 @@ TEST_P(VPxFirstPassEncoderThreadTest, FirstPassStatsTest) {
   cfg_.g_threads = 4;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
-  // Compare to check if single-thread and multi-thread stats matches.
-  compare_fp_stats(&firstpass_stats_);
+  // Compare to check if single-thread and multi-thread stats are close enough.
+  ASSERT_NO_FATAL_FAILURE(compare_fp_stats(&firstpass_stats_, 1000.0));
+
+  // Bit exact test in row_mt mode.
+  // When row_mt_mode_=1 and using >1 threads, the encoder generates bit exact
+  // result.
+  row_mt_mode_ = 1;
+  tiles_ = 2;
+
+  cfg_.g_threads = 2;
+  init_flags_ = VPX_CODEC_USE_PSNR;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+
+  cfg_.g_threads = 8;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+
+  // Compare to check if stats match with row-mt=0/1.
+  compare_fp_stats_md5(&firstpass_stats_);
 }
 
 class VPxEncoderThreadTest
@@ -190,7 +228,9 @@ class VPxEncoderThreadTest
         encoding_mode_(GET_PARAM(1)), set_cpu_used_(GET_PARAM(2)) {
     init_flags_ = VPX_CODEC_USE_PSNR;
     md5_.clear();
-    new_mt_mode_ = 1;
+    row_mt_mode_ = 1;
+    psnr_ = 0.0;
+    nframes_ = 0;
   }
   virtual ~VPxEncoderThreadTest() {}
 
@@ -199,7 +239,6 @@ class VPxEncoderThreadTest
     SetMode(encoding_mode_);
 
     if (encoding_mode_ != ::libvpx_test::kRealTime) {
-      cfg_.g_lag_in_frames = 3;
       cfg_.rc_end_usage = VPX_VBR;
       cfg_.rc_2pass_vbr_minsection_pct = 5;
       cfg_.rc_2pass_vbr_maxsection_pct = 2000;
@@ -214,6 +253,8 @@ class VPxEncoderThreadTest
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
     encoder_initialized_ = false;
+    psnr_ = 0.0;
+    nframes_ = 0;
   }
 
   virtual void PreEncodeFrameHook(::libvpx_test::VideoSource * /*video*/,
@@ -228,17 +269,19 @@ class VPxEncoderThreadTest
         encoder->Control(VP8E_SET_ARNR_STRENGTH, 5);
         encoder->Control(VP8E_SET_ARNR_TYPE, 3);
         encoder->Control(VP9E_SET_FRAME_PARALLEL_DECODING, 0);
-
-        // While new_mt = 1(namely, using row-based multi-threading), several
-        // speed features that would adaptively adjust encoding parameters have
-        // to be disabled to guarantee the bit match of the resulted bitstream.
-        if (new_mt_mode_) encoder->Control(VP9E_ENABLE_THREAD_BIT_MATCH, 1);
       } else {
         encoder->Control(VP8E_SET_ENABLEAUTOALTREF, 0);
         encoder->Control(VP9E_SET_AQ_MODE, 3);
       }
+      encoder->Control(VP9E_SET_ROW_MT, row_mt_mode_);
+
       encoder_initialized_ = true;
     }
+  }
+
+  virtual void PSNRPktHook(const vpx_codec_cx_pkt_t *pkt) {
+    psnr_ += pkt->data.psnr.psnr[0];
+    nframes_++;
   }
 
   virtual void DecompressedFrameHook(const vpx_image_t &img,
@@ -259,37 +302,92 @@ class VPxEncoderThreadTest
     return true;
   }
 
+  double GetAveragePsnr() const { return nframes_ ? (psnr_ / nframes_) : 0.0; }
+
   bool encoder_initialized_;
   int tiles_;
   int threads_;
   ::libvpx_test::TestMode encoding_mode_;
   int set_cpu_used_;
-  int new_mt_mode_;
+  int row_mt_mode_;
+  double psnr_;
+  unsigned int nframes_;
   std::vector<std::string> md5_;
 };
 
 TEST_P(VPxEncoderThreadTest, EncoderResultTest) {
-  std::vector<std::string> single_thr_md5, multi_thr_md5;
-
   ::libvpx_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 15, 20);
-
   cfg_.rc_target_bitrate = 1000;
+
+  // Part 1: Bit exact test for row_mt_mode_ = 0.
+  // This part keeps original unit tests done before row-mt code is checked in.
+  row_mt_mode_ = 0;
 
   // Encode using single thread.
   cfg_.g_threads = 1;
   init_flags_ = VPX_CODEC_USE_PSNR;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  single_thr_md5 = md5_;
+  const std::vector<std::string> single_thr_md5 = md5_;
   md5_.clear();
 
   // Encode using multiple threads.
   cfg_.g_threads = threads_;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  multi_thr_md5 = md5_;
+  const std::vector<std::string> multi_thr_md5 = md5_;
   md5_.clear();
 
   // Compare to check if two vectors are equal.
   ASSERT_EQ(single_thr_md5, multi_thr_md5);
+
+  // Part 2: row_mt_mode_ = 0 vs row_mt_mode_ = 1 single thread bit exact test.
+  row_mt_mode_ = 1;
+
+  // Encode using single thread
+  cfg_.g_threads = 1;
+  init_flags_ = VPX_CODEC_USE_PSNR;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  std::vector<std::string> row_mt_single_thr_md5 = md5_;
+  md5_.clear();
+
+  ASSERT_EQ(single_thr_md5, row_mt_single_thr_md5);
+
+  // Part 3: Bit exact test with row-mt on
+  // When row_mt_mode_=1 and using >1 threads, the encoder generates bit exact
+  // result.
+  row_mt_mode_ = 1;
+  row_mt_single_thr_md5.clear();
+
+  // Encode using 2 threads.
+  cfg_.g_threads = 2;
+  init_flags_ = VPX_CODEC_USE_PSNR;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  row_mt_single_thr_md5 = md5_;
+  md5_.clear();
+
+  // Encode using multiple threads.
+  cfg_.g_threads = threads_;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  const std::vector<std::string> row_mt_multi_thr_md5 = md5_;
+  md5_.clear();
+
+  // Compare to check if two vectors are equal.
+  ASSERT_EQ(row_mt_single_thr_md5, row_mt_multi_thr_md5);
+
+  // Part 4: PSNR test with bit_match_mode_ = 0
+  row_mt_mode_ = 1;
+
+  // Encode using single thread.
+  cfg_.g_threads = 1;
+  init_flags_ = VPX_CODEC_USE_PSNR;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  const double single_thr_psnr = GetAveragePsnr();
+
+  // Encode using multiple threads.
+  cfg_.g_threads = threads_;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  const double multi_thr_psnr = GetAveragePsnr();
+
+  EXPECT_NEAR(single_thr_psnr, multi_thr_psnr, 0.2);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -311,7 +409,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(::libvpx_test::kTwoPassGood,
                           ::libvpx_test::kOnePassGood,
                           ::libvpx_test::kRealTime),
-        ::testing::Range(2, 9),    // cpu_used
+        ::testing::Range(3, 10),   // cpu_used
         ::testing::Range(0, 3),    // tile_columns
         ::testing::Range(2, 5)));  // threads
 
@@ -323,7 +421,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(::libvpx_test::kTwoPassGood,
                           ::libvpx_test::kOnePassGood,
                           ::libvpx_test::kRealTime),
-        ::testing::Range(0, 2),    // cpu_used
+        ::testing::Range(0, 3),    // cpu_used
         ::testing::Range(0, 3),    // tile_columns
         ::testing::Range(2, 5)));  // threads
 

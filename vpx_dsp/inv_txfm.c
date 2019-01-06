@@ -67,11 +67,11 @@ void vpx_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
   }
 }
 
-void vpx_iwht4x4_1_add_c(const tran_low_t *in, uint8_t *dest, int stride) {
+void vpx_iwht4x4_1_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
   int i;
   tran_high_t a1, e1;
   tran_low_t tmp[4];
-  const tran_low_t *ip = in;
+  const tran_low_t *ip = input;
   tran_low_t *op = tmp;
 
   a1 = ip[0] >> UNIT_QUANT_SHIFT;
@@ -105,6 +105,7 @@ void iadst4_c(const tran_low_t *input, tran_low_t *output) {
     return;
   }
 
+  // 32-bit result is enough for the following multiplications.
   s0 = sinpi_1_9 * x0;
   s1 = sinpi_2_9 * x0;
   s2 = sinpi_3_9 * x1;
@@ -130,16 +131,16 @@ void iadst4_c(const tran_low_t *input, tran_low_t *output) {
 }
 
 void idct4_c(const tran_low_t *input, tran_low_t *output) {
-  tran_low_t step[4];
+  int16_t step[4];
   tran_high_t temp1, temp2;
 
   // stage 1
-  temp1 = (input[0] + input[2]) * cospi_16_64;
-  temp2 = (input[0] - input[2]) * cospi_16_64;
+  temp1 = ((int16_t)input[0] + (int16_t)input[2]) * cospi_16_64;
+  temp2 = ((int16_t)input[0] - (int16_t)input[2]) * cospi_16_64;
   step[0] = WRAPLOW(dct_const_round_shift(temp1));
   step[1] = WRAPLOW(dct_const_round_shift(temp2));
-  temp1 = input[1] * cospi_24_64 - input[3] * cospi_8_64;
-  temp2 = input[1] * cospi_8_64 + input[3] * cospi_24_64;
+  temp1 = (int16_t)input[1] * cospi_24_64 - (int16_t)input[3] * cospi_8_64;
+  temp2 = (int16_t)input[1] * cospi_8_64 + (int16_t)input[3] * cospi_24_64;
   step[2] = WRAPLOW(dct_const_round_shift(temp1));
   step[3] = WRAPLOW(dct_const_round_shift(temp2));
 
@@ -177,7 +178,8 @@ void vpx_idct4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
 void vpx_idct4x4_1_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
   int i;
   tran_high_t a1;
-  tran_low_t out = WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64));
+  tran_low_t out =
+      WRAPLOW(dct_const_round_shift((int16_t)input[0] * cospi_16_64));
 
   out = WRAPLOW(dct_const_round_shift(out * cospi_16_64));
   a1 = ROUND_POWER_OF_TWO(out, 4);
@@ -267,20 +269,20 @@ void iadst8_c(const tran_low_t *input, tran_low_t *output) {
 }
 
 void idct8_c(const tran_low_t *input, tran_low_t *output) {
-  tran_low_t step1[8], step2[8];
+  int16_t step1[8], step2[8];
   tran_high_t temp1, temp2;
 
   // stage 1
-  step1[0] = input[0];
-  step1[2] = input[4];
-  step1[1] = input[2];
-  step1[3] = input[6];
-  temp1 = input[1] * cospi_28_64 - input[7] * cospi_4_64;
-  temp2 = input[1] * cospi_4_64 + input[7] * cospi_28_64;
+  step1[0] = (int16_t)input[0];
+  step1[2] = (int16_t)input[4];
+  step1[1] = (int16_t)input[2];
+  step1[3] = (int16_t)input[6];
+  temp1 = (int16_t)input[1] * cospi_28_64 - (int16_t)input[7] * cospi_4_64;
+  temp2 = (int16_t)input[1] * cospi_4_64 + (int16_t)input[7] * cospi_28_64;
   step1[4] = WRAPLOW(dct_const_round_shift(temp1));
   step1[7] = WRAPLOW(dct_const_round_shift(temp2));
-  temp1 = input[5] * cospi_12_64 - input[3] * cospi_20_64;
-  temp2 = input[5] * cospi_20_64 + input[3] * cospi_12_64;
+  temp1 = (int16_t)input[5] * cospi_12_64 - (int16_t)input[3] * cospi_20_64;
+  temp2 = (int16_t)input[5] * cospi_20_64 + (int16_t)input[3] * cospi_12_64;
   step1[5] = WRAPLOW(dct_const_round_shift(temp1));
   step1[6] = WRAPLOW(dct_const_round_shift(temp2));
 
@@ -373,7 +375,8 @@ void vpx_idct8x8_12_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
 void vpx_idct8x8_1_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
   int i, j;
   tran_high_t a1;
-  tran_low_t out = WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64));
+  tran_low_t out =
+      WRAPLOW(dct_const_round_shift((int16_t)input[0] * cospi_16_64));
 
   out = WRAPLOW(dct_const_round_shift(out * cospi_16_64));
   a1 = ROUND_POWER_OF_TWO(out, 5);
@@ -552,26 +555,26 @@ void iadst16_c(const tran_low_t *input, tran_low_t *output) {
 }
 
 void idct16_c(const tran_low_t *input, tran_low_t *output) {
-  tran_low_t step1[16], step2[16];
+  int16_t step1[16], step2[16];
   tran_high_t temp1, temp2;
 
   // stage 1
-  step1[0] = input[0 / 2];
-  step1[1] = input[16 / 2];
-  step1[2] = input[8 / 2];
-  step1[3] = input[24 / 2];
-  step1[4] = input[4 / 2];
-  step1[5] = input[20 / 2];
-  step1[6] = input[12 / 2];
-  step1[7] = input[28 / 2];
-  step1[8] = input[2 / 2];
-  step1[9] = input[18 / 2];
-  step1[10] = input[10 / 2];
-  step1[11] = input[26 / 2];
-  step1[12] = input[6 / 2];
-  step1[13] = input[22 / 2];
-  step1[14] = input[14 / 2];
-  step1[15] = input[30 / 2];
+  step1[0] = (int16_t)input[0 / 2];
+  step1[1] = (int16_t)input[16 / 2];
+  step1[2] = (int16_t)input[8 / 2];
+  step1[3] = (int16_t)input[24 / 2];
+  step1[4] = (int16_t)input[4 / 2];
+  step1[5] = (int16_t)input[20 / 2];
+  step1[6] = (int16_t)input[12 / 2];
+  step1[7] = (int16_t)input[28 / 2];
+  step1[8] = (int16_t)input[2 / 2];
+  step1[9] = (int16_t)input[18 / 2];
+  step1[10] = (int16_t)input[10 / 2];
+  step1[11] = (int16_t)input[26 / 2];
+  step1[12] = (int16_t)input[6 / 2];
+  step1[13] = (int16_t)input[22 / 2];
+  step1[14] = (int16_t)input[14 / 2];
+  step1[15] = (int16_t)input[30 / 2];
 
   // stage 2
   step2[0] = step1[0];
@@ -796,7 +799,8 @@ void vpx_idct16x16_10_add_c(const tran_low_t *input, uint8_t *dest,
 void vpx_idct16x16_1_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
   int i, j;
   tran_high_t a1;
-  tran_low_t out = WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64));
+  tran_low_t out =
+      WRAPLOW(dct_const_round_shift((int16_t)input[0] * cospi_16_64));
 
   out = WRAPLOW(dct_const_round_shift(out * cospi_16_64));
   a1 = ROUND_POWER_OF_TWO(out, 6);
@@ -807,64 +811,64 @@ void vpx_idct16x16_1_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
 }
 
 void idct32_c(const tran_low_t *input, tran_low_t *output) {
-  tran_low_t step1[32], step2[32];
+  int16_t step1[32], step2[32];
   tran_high_t temp1, temp2;
 
   // stage 1
-  step1[0] = input[0];
-  step1[1] = input[16];
-  step1[2] = input[8];
-  step1[3] = input[24];
-  step1[4] = input[4];
-  step1[5] = input[20];
-  step1[6] = input[12];
-  step1[7] = input[28];
-  step1[8] = input[2];
-  step1[9] = input[18];
-  step1[10] = input[10];
-  step1[11] = input[26];
-  step1[12] = input[6];
-  step1[13] = input[22];
-  step1[14] = input[14];
-  step1[15] = input[30];
+  step1[0] = (int16_t)input[0];
+  step1[1] = (int16_t)input[16];
+  step1[2] = (int16_t)input[8];
+  step1[3] = (int16_t)input[24];
+  step1[4] = (int16_t)input[4];
+  step1[5] = (int16_t)input[20];
+  step1[6] = (int16_t)input[12];
+  step1[7] = (int16_t)input[28];
+  step1[8] = (int16_t)input[2];
+  step1[9] = (int16_t)input[18];
+  step1[10] = (int16_t)input[10];
+  step1[11] = (int16_t)input[26];
+  step1[12] = (int16_t)input[6];
+  step1[13] = (int16_t)input[22];
+  step1[14] = (int16_t)input[14];
+  step1[15] = (int16_t)input[30];
 
-  temp1 = input[1] * cospi_31_64 - input[31] * cospi_1_64;
-  temp2 = input[1] * cospi_1_64 + input[31] * cospi_31_64;
+  temp1 = (int16_t)input[1] * cospi_31_64 - (int16_t)input[31] * cospi_1_64;
+  temp2 = (int16_t)input[1] * cospi_1_64 + (int16_t)input[31] * cospi_31_64;
   step1[16] = WRAPLOW(dct_const_round_shift(temp1));
   step1[31] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[17] * cospi_15_64 - input[15] * cospi_17_64;
-  temp2 = input[17] * cospi_17_64 + input[15] * cospi_15_64;
+  temp1 = (int16_t)input[17] * cospi_15_64 - (int16_t)input[15] * cospi_17_64;
+  temp2 = (int16_t)input[17] * cospi_17_64 + (int16_t)input[15] * cospi_15_64;
   step1[17] = WRAPLOW(dct_const_round_shift(temp1));
   step1[30] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[9] * cospi_23_64 - input[23] * cospi_9_64;
-  temp2 = input[9] * cospi_9_64 + input[23] * cospi_23_64;
+  temp1 = (int16_t)input[9] * cospi_23_64 - (int16_t)input[23] * cospi_9_64;
+  temp2 = (int16_t)input[9] * cospi_9_64 + (int16_t)input[23] * cospi_23_64;
   step1[18] = WRAPLOW(dct_const_round_shift(temp1));
   step1[29] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[25] * cospi_7_64 - input[7] * cospi_25_64;
-  temp2 = input[25] * cospi_25_64 + input[7] * cospi_7_64;
+  temp1 = (int16_t)input[25] * cospi_7_64 - (int16_t)input[7] * cospi_25_64;
+  temp2 = (int16_t)input[25] * cospi_25_64 + (int16_t)input[7] * cospi_7_64;
   step1[19] = WRAPLOW(dct_const_round_shift(temp1));
   step1[28] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[5] * cospi_27_64 - input[27] * cospi_5_64;
-  temp2 = input[5] * cospi_5_64 + input[27] * cospi_27_64;
+  temp1 = (int16_t)input[5] * cospi_27_64 - (int16_t)input[27] * cospi_5_64;
+  temp2 = (int16_t)input[5] * cospi_5_64 + (int16_t)input[27] * cospi_27_64;
   step1[20] = WRAPLOW(dct_const_round_shift(temp1));
   step1[27] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[21] * cospi_11_64 - input[11] * cospi_21_64;
-  temp2 = input[21] * cospi_21_64 + input[11] * cospi_11_64;
+  temp1 = (int16_t)input[21] * cospi_11_64 - (int16_t)input[11] * cospi_21_64;
+  temp2 = (int16_t)input[21] * cospi_21_64 + (int16_t)input[11] * cospi_11_64;
   step1[21] = WRAPLOW(dct_const_round_shift(temp1));
   step1[26] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[13] * cospi_19_64 - input[19] * cospi_13_64;
-  temp2 = input[13] * cospi_13_64 + input[19] * cospi_19_64;
+  temp1 = (int16_t)input[13] * cospi_19_64 - (int16_t)input[19] * cospi_13_64;
+  temp2 = (int16_t)input[13] * cospi_13_64 + (int16_t)input[19] * cospi_19_64;
   step1[22] = WRAPLOW(dct_const_round_shift(temp1));
   step1[25] = WRAPLOW(dct_const_round_shift(temp2));
 
-  temp1 = input[29] * cospi_3_64 - input[3] * cospi_29_64;
-  temp2 = input[29] * cospi_29_64 + input[3] * cospi_3_64;
+  temp1 = (int16_t)input[29] * cospi_3_64 - (int16_t)input[3] * cospi_29_64;
+  temp2 = (int16_t)input[29] * cospi_29_64 + (int16_t)input[3] * cospi_3_64;
   step1[23] = WRAPLOW(dct_const_round_shift(temp1));
   step1[24] = WRAPLOW(dct_const_round_shift(temp2));
 
@@ -1182,16 +1186,10 @@ void vpx_idct32x32_1024_add_c(const tran_low_t *input, uint8_t *dest,
 
   // Rows
   for (i = 0; i < 32; ++i) {
-    int16_t zero_coeff[16];
-    for (j = 0; j < 16; ++j) zero_coeff[j] = input[2 * j] | input[2 * j + 1];
-    for (j = 0; j < 8; ++j)
-      zero_coeff[j] = zero_coeff[2 * j] | zero_coeff[2 * j + 1];
-    for (j = 0; j < 4; ++j)
-      zero_coeff[j] = zero_coeff[2 * j] | zero_coeff[2 * j + 1];
-    for (j = 0; j < 2; ++j)
-      zero_coeff[j] = zero_coeff[2 * j] | zero_coeff[2 * j + 1];
+    int16_t zero_coeff = 0;
+    for (j = 0; j < 32; ++j) zero_coeff |= input[j];
 
-    if (zero_coeff[0] | zero_coeff[1])
+    if (zero_coeff)
       idct32_c(input, outptr);
     else
       memset(outptr, 0, sizeof(tran_low_t) * 32);
@@ -1265,7 +1263,8 @@ void vpx_idct32x32_34_add_c(const tran_low_t *input, uint8_t *dest,
 void vpx_idct32x32_1_add_c(const tran_low_t *input, uint8_t *dest, int stride) {
   int i, j;
   tran_high_t a1;
-  tran_low_t out = WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64));
+  tran_low_t out =
+      WRAPLOW(dct_const_round_shift((int16_t)input[0] * cospi_16_64));
 
   out = WRAPLOW(dct_const_round_shift(out * cospi_16_64));
   a1 = ROUND_POWER_OF_TWO(out, 6);
@@ -1290,7 +1289,7 @@ static INLINE int detect_invalid_highbd_input(const tran_low_t *input,
   return 0;
 }
 
-void vpx_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint16_t *dest,
                                  int stride, int bd) {
   /* 4-point reversible, orthonormal inverse Walsh-Hadamard in 3.5 adds,
      0.5 shifts per pixel. */
@@ -1299,7 +1298,6 @@ void vpx_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
   tran_high_t a1, b1, c1, d1, e1;
   const tran_low_t *ip = input;
   tran_low_t *op = output;
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   for (i = 0; i < 4; i++) {
     a1 = ip[0] >> UNIT_QUANT_SHIFT;
@@ -1348,14 +1346,13 @@ void vpx_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint8_t *dest8,
+void vpx_highbd_iwht4x4_1_add_c(const tran_low_t *input, uint16_t *dest,
                                 int stride, int bd) {
   int i;
   tran_high_t a1, e1;
   tran_low_t tmp[4];
-  const tran_low_t *ip = in;
+  const tran_low_t *ip = input;
   tran_low_t *op = tmp;
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
   (void)bd;
 
   a1 = ip[0] >> UNIT_QUANT_SHIFT;
@@ -1398,13 +1395,13 @@ void vpx_highbd_iadst4_c(const tran_low_t *input, tran_low_t *output, int bd) {
     return;
   }
 
-  s0 = sinpi_1_9 * x0;
-  s1 = sinpi_2_9 * x0;
-  s2 = sinpi_3_9 * x1;
-  s3 = sinpi_4_9 * x2;
-  s4 = sinpi_1_9 * x2;
-  s5 = sinpi_2_9 * x3;
-  s6 = sinpi_4_9 * x3;
+  s0 = (tran_high_t)sinpi_1_9 * x0;
+  s1 = (tran_high_t)sinpi_2_9 * x0;
+  s2 = (tran_high_t)sinpi_3_9 * x1;
+  s3 = (tran_high_t)sinpi_4_9 * x2;
+  s4 = (tran_high_t)sinpi_1_9 * x2;
+  s5 = (tran_high_t)sinpi_2_9 * x3;
+  s6 = (tran_high_t)sinpi_4_9 * x3;
   s7 = (tran_high_t)HIGHBD_WRAPLOW(x0 - x2 + x3, bd);
 
   s0 = s0 + s3 + s5;
@@ -1436,12 +1433,14 @@ void vpx_highbd_idct4_c(const tran_low_t *input, tran_low_t *output, int bd) {
   }
 
   // stage 1
-  temp1 = (input[0] + input[2]) * cospi_16_64;
-  temp2 = (input[0] - input[2]) * cospi_16_64;
+  temp1 = (input[0] + input[2]) * (tran_high_t)cospi_16_64;
+  temp2 = (input[0] - input[2]) * (tran_high_t)cospi_16_64;
   step[0] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step[1] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = input[1] * cospi_24_64 - input[3] * cospi_8_64;
-  temp2 = input[1] * cospi_8_64 + input[3] * cospi_24_64;
+  temp1 =
+      input[1] * (tran_high_t)cospi_24_64 - input[3] * (tran_high_t)cospi_8_64;
+  temp2 =
+      input[1] * (tran_high_t)cospi_8_64 + input[3] * (tran_high_t)cospi_24_64;
   step[2] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step[3] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -1452,13 +1451,12 @@ void vpx_highbd_idct4_c(const tran_low_t *input, tran_low_t *output, int bd) {
   output[3] = HIGHBD_WRAPLOW(step[0] - step[3], bd);
 }
 
-void vpx_highbd_idct4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct4x4_16_add_c(const tran_low_t *input, uint16_t *dest,
                                  int stride, int bd) {
   int i, j;
   tran_low_t out[4 * 4];
   tran_low_t *outptr = out;
   tran_low_t temp_in[4], temp_out[4];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // Rows
   for (i = 0; i < 4; ++i) {
@@ -1478,15 +1476,15 @@ void vpx_highbd_idct4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct4x4_1_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct4x4_1_add_c(const tran_low_t *input, uint16_t *dest,
                                 int stride, int bd) {
   int i;
   tran_high_t a1;
-  tran_low_t out =
-      HIGHBD_WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64), bd);
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
+  tran_low_t out = HIGHBD_WRAPLOW(
+      dct_const_round_shift(input[0] * (tran_high_t)cospi_16_64), bd);
 
-  out = HIGHBD_WRAPLOW(dct_const_round_shift(out * cospi_16_64), bd);
+  out =
+      HIGHBD_WRAPLOW(dct_const_round_shift(out * (tran_high_t)cospi_16_64), bd);
   a1 = ROUND_POWER_OF_TWO(out, 4);
 
   for (i = 0; i < 4; i++) {
@@ -1524,14 +1522,14 @@ void vpx_highbd_iadst8_c(const tran_low_t *input, tran_low_t *output, int bd) {
   }
 
   // stage 1
-  s0 = cospi_2_64 * x0 + cospi_30_64 * x1;
-  s1 = cospi_30_64 * x0 - cospi_2_64 * x1;
-  s2 = cospi_10_64 * x2 + cospi_22_64 * x3;
-  s3 = cospi_22_64 * x2 - cospi_10_64 * x3;
-  s4 = cospi_18_64 * x4 + cospi_14_64 * x5;
-  s5 = cospi_14_64 * x4 - cospi_18_64 * x5;
-  s6 = cospi_26_64 * x6 + cospi_6_64 * x7;
-  s7 = cospi_6_64 * x6 - cospi_26_64 * x7;
+  s0 = (tran_high_t)cospi_2_64 * x0 + (tran_high_t)cospi_30_64 * x1;
+  s1 = (tran_high_t)cospi_30_64 * x0 - (tran_high_t)cospi_2_64 * x1;
+  s2 = (tran_high_t)cospi_10_64 * x2 + (tran_high_t)cospi_22_64 * x3;
+  s3 = (tran_high_t)cospi_22_64 * x2 - (tran_high_t)cospi_10_64 * x3;
+  s4 = (tran_high_t)cospi_18_64 * x4 + (tran_high_t)cospi_14_64 * x5;
+  s5 = (tran_high_t)cospi_14_64 * x4 - (tran_high_t)cospi_18_64 * x5;
+  s6 = (tran_high_t)cospi_26_64 * x6 + (tran_high_t)cospi_6_64 * x7;
+  s7 = (tran_high_t)cospi_6_64 * x6 - (tran_high_t)cospi_26_64 * x7;
 
   x0 = HIGHBD_WRAPLOW(dct_const_round_shift(s0 + s4), bd);
   x1 = HIGHBD_WRAPLOW(dct_const_round_shift(s1 + s5), bd);
@@ -1547,10 +1545,10 @@ void vpx_highbd_iadst8_c(const tran_low_t *input, tran_low_t *output, int bd) {
   s1 = x1;
   s2 = x2;
   s3 = x3;
-  s4 = cospi_8_64 * x4 + cospi_24_64 * x5;
-  s5 = cospi_24_64 * x4 - cospi_8_64 * x5;
-  s6 = -cospi_24_64 * x6 + cospi_8_64 * x7;
-  s7 = cospi_8_64 * x6 + cospi_24_64 * x7;
+  s4 = (tran_high_t)cospi_8_64 * x4 + (tran_high_t)cospi_24_64 * x5;
+  s5 = (tran_high_t)cospi_24_64 * x4 - (tran_high_t)cospi_8_64 * x5;
+  s6 = (tran_high_t)(-cospi_24_64) * x6 + (tran_high_t)cospi_8_64 * x7;
+  s7 = (tran_high_t)cospi_8_64 * x6 + (tran_high_t)cospi_24_64 * x7;
 
   x0 = HIGHBD_WRAPLOW(s0 + s2, bd);
   x1 = HIGHBD_WRAPLOW(s1 + s3, bd);
@@ -1562,10 +1560,10 @@ void vpx_highbd_iadst8_c(const tran_low_t *input, tran_low_t *output, int bd) {
   x7 = HIGHBD_WRAPLOW(dct_const_round_shift(s5 - s7), bd);
 
   // stage 3
-  s2 = cospi_16_64 * (x2 + x3);
-  s3 = cospi_16_64 * (x2 - x3);
-  s6 = cospi_16_64 * (x6 + x7);
-  s7 = cospi_16_64 * (x6 - x7);
+  s2 = (tran_high_t)cospi_16_64 * (x2 + x3);
+  s3 = (tran_high_t)cospi_16_64 * (x2 - x3);
+  s6 = (tran_high_t)cospi_16_64 * (x6 + x7);
+  s7 = (tran_high_t)cospi_16_64 * (x6 - x7);
 
   x2 = HIGHBD_WRAPLOW(dct_const_round_shift(s2), bd);
   x3 = HIGHBD_WRAPLOW(dct_const_round_shift(s3), bd);
@@ -1599,12 +1597,16 @@ void vpx_highbd_idct8_c(const tran_low_t *input, tran_low_t *output, int bd) {
   step1[2] = input[4];
   step1[1] = input[2];
   step1[3] = input[6];
-  temp1 = input[1] * cospi_28_64 - input[7] * cospi_4_64;
-  temp2 = input[1] * cospi_4_64 + input[7] * cospi_28_64;
+  temp1 =
+      input[1] * (tran_high_t)cospi_28_64 - input[7] * (tran_high_t)cospi_4_64;
+  temp2 =
+      input[1] * (tran_high_t)cospi_4_64 + input[7] * (tran_high_t)cospi_28_64;
   step1[4] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[7] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = input[5] * cospi_12_64 - input[3] * cospi_20_64;
-  temp2 = input[5] * cospi_20_64 + input[3] * cospi_12_64;
+  temp1 =
+      input[5] * (tran_high_t)cospi_12_64 - input[3] * (tran_high_t)cospi_20_64;
+  temp2 =
+      input[5] * (tran_high_t)cospi_20_64 + input[3] * (tran_high_t)cospi_12_64;
   step1[5] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[6] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -1619,8 +1621,8 @@ void vpx_highbd_idct8_c(const tran_low_t *input, tran_low_t *output, int bd) {
 
   // stage 3 - odd half
   step1[4] = step2[4];
-  temp1 = (step2[6] - step2[5]) * cospi_16_64;
-  temp2 = (step2[5] + step2[6]) * cospi_16_64;
+  temp1 = (step2[6] - step2[5]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[5] + step2[6]) * (tran_high_t)cospi_16_64;
   step1[5] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[6] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[7] = step2[7];
@@ -1636,13 +1638,12 @@ void vpx_highbd_idct8_c(const tran_low_t *input, tran_low_t *output, int bd) {
   output[7] = HIGHBD_WRAPLOW(step1[0] - step1[7], bd);
 }
 
-void vpx_highbd_idct8x8_64_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct8x8_64_add_c(const tran_low_t *input, uint16_t *dest,
                                  int stride, int bd) {
   int i, j;
   tran_low_t out[8 * 8];
   tran_low_t *outptr = out;
   tran_low_t temp_in[8], temp_out[8];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // First transform rows
   for (i = 0; i < 8; ++i) {
@@ -1662,13 +1663,12 @@ void vpx_highbd_idct8x8_64_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct8x8_12_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct8x8_12_add_c(const tran_low_t *input, uint16_t *dest,
                                  int stride, int bd) {
   int i, j;
   tran_low_t out[8 * 8] = { 0 };
   tran_low_t *outptr = out;
   tran_low_t temp_in[8], temp_out[8];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // First transform rows
   // Only first 4 row has non-zero coefs
@@ -1689,15 +1689,15 @@ void vpx_highbd_idct8x8_12_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct8x8_1_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct8x8_1_add_c(const tran_low_t *input, uint16_t *dest,
                                 int stride, int bd) {
   int i, j;
   tran_high_t a1;
-  tran_low_t out =
-      HIGHBD_WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64), bd);
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
+  tran_low_t out = HIGHBD_WRAPLOW(
+      dct_const_round_shift(input[0] * (tran_high_t)cospi_16_64), bd);
 
-  out = HIGHBD_WRAPLOW(dct_const_round_shift(out * cospi_16_64), bd);
+  out =
+      HIGHBD_WRAPLOW(dct_const_round_shift(out * (tran_high_t)cospi_16_64), bd);
   a1 = ROUND_POWER_OF_TWO(out, 5);
   for (j = 0; j < 8; ++j) {
     for (i = 0; i < 8; ++i) dest[i] = highbd_clip_pixel_add(dest[i], a1, bd);
@@ -1741,22 +1741,22 @@ void vpx_highbd_iadst16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   }
 
   // stage 1
-  s0 = x0 * cospi_1_64 + x1 * cospi_31_64;
-  s1 = x0 * cospi_31_64 - x1 * cospi_1_64;
-  s2 = x2 * cospi_5_64 + x3 * cospi_27_64;
-  s3 = x2 * cospi_27_64 - x3 * cospi_5_64;
-  s4 = x4 * cospi_9_64 + x5 * cospi_23_64;
-  s5 = x4 * cospi_23_64 - x5 * cospi_9_64;
-  s6 = x6 * cospi_13_64 + x7 * cospi_19_64;
-  s7 = x6 * cospi_19_64 - x7 * cospi_13_64;
-  s8 = x8 * cospi_17_64 + x9 * cospi_15_64;
-  s9 = x8 * cospi_15_64 - x9 * cospi_17_64;
-  s10 = x10 * cospi_21_64 + x11 * cospi_11_64;
-  s11 = x10 * cospi_11_64 - x11 * cospi_21_64;
-  s12 = x12 * cospi_25_64 + x13 * cospi_7_64;
-  s13 = x12 * cospi_7_64 - x13 * cospi_25_64;
-  s14 = x14 * cospi_29_64 + x15 * cospi_3_64;
-  s15 = x14 * cospi_3_64 - x15 * cospi_29_64;
+  s0 = x0 * (tran_high_t)cospi_1_64 + x1 * (tran_high_t)cospi_31_64;
+  s1 = x0 * (tran_high_t)cospi_31_64 - x1 * (tran_high_t)cospi_1_64;
+  s2 = x2 * (tran_high_t)cospi_5_64 + x3 * (tran_high_t)cospi_27_64;
+  s3 = x2 * (tran_high_t)cospi_27_64 - x3 * (tran_high_t)cospi_5_64;
+  s4 = x4 * (tran_high_t)cospi_9_64 + x5 * (tran_high_t)cospi_23_64;
+  s5 = x4 * (tran_high_t)cospi_23_64 - x5 * (tran_high_t)cospi_9_64;
+  s6 = x6 * (tran_high_t)cospi_13_64 + x7 * (tran_high_t)cospi_19_64;
+  s7 = x6 * (tran_high_t)cospi_19_64 - x7 * (tran_high_t)cospi_13_64;
+  s8 = x8 * (tran_high_t)cospi_17_64 + x9 * (tran_high_t)cospi_15_64;
+  s9 = x8 * (tran_high_t)cospi_15_64 - x9 * (tran_high_t)cospi_17_64;
+  s10 = x10 * (tran_high_t)cospi_21_64 + x11 * (tran_high_t)cospi_11_64;
+  s11 = x10 * (tran_high_t)cospi_11_64 - x11 * (tran_high_t)cospi_21_64;
+  s12 = x12 * (tran_high_t)cospi_25_64 + x13 * (tran_high_t)cospi_7_64;
+  s13 = x12 * (tran_high_t)cospi_7_64 - x13 * (tran_high_t)cospi_25_64;
+  s14 = x14 * (tran_high_t)cospi_29_64 + x15 * (tran_high_t)cospi_3_64;
+  s15 = x14 * (tran_high_t)cospi_3_64 - x15 * (tran_high_t)cospi_29_64;
 
   x0 = HIGHBD_WRAPLOW(dct_const_round_shift(s0 + s8), bd);
   x1 = HIGHBD_WRAPLOW(dct_const_round_shift(s1 + s9), bd);
@@ -1784,14 +1784,14 @@ void vpx_highbd_iadst16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   s5 = x5;
   s6 = x6;
   s7 = x7;
-  s8 = x8 * cospi_4_64 + x9 * cospi_28_64;
-  s9 = x8 * cospi_28_64 - x9 * cospi_4_64;
-  s10 = x10 * cospi_20_64 + x11 * cospi_12_64;
-  s11 = x10 * cospi_12_64 - x11 * cospi_20_64;
-  s12 = -x12 * cospi_28_64 + x13 * cospi_4_64;
-  s13 = x12 * cospi_4_64 + x13 * cospi_28_64;
-  s14 = -x14 * cospi_12_64 + x15 * cospi_20_64;
-  s15 = x14 * cospi_20_64 + x15 * cospi_12_64;
+  s8 = x8 * (tran_high_t)cospi_4_64 + x9 * (tran_high_t)cospi_28_64;
+  s9 = x8 * (tran_high_t)cospi_28_64 - x9 * (tran_high_t)cospi_4_64;
+  s10 = x10 * (tran_high_t)cospi_20_64 + x11 * (tran_high_t)cospi_12_64;
+  s11 = x10 * (tran_high_t)cospi_12_64 - x11 * (tran_high_t)cospi_20_64;
+  s12 = -x12 * (tran_high_t)cospi_28_64 + x13 * (tran_high_t)cospi_4_64;
+  s13 = x12 * (tran_high_t)cospi_4_64 + x13 * (tran_high_t)cospi_28_64;
+  s14 = -x14 * (tran_high_t)cospi_12_64 + x15 * (tran_high_t)cospi_20_64;
+  s15 = x14 * (tran_high_t)cospi_20_64 + x15 * (tran_high_t)cospi_12_64;
 
   x0 = HIGHBD_WRAPLOW(s0 + s4, bd);
   x1 = HIGHBD_WRAPLOW(s1 + s5, bd);
@@ -1815,18 +1815,18 @@ void vpx_highbd_iadst16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   s1 = x1;
   s2 = x2;
   s3 = x3;
-  s4 = x4 * cospi_8_64 + x5 * cospi_24_64;
-  s5 = x4 * cospi_24_64 - x5 * cospi_8_64;
-  s6 = -x6 * cospi_24_64 + x7 * cospi_8_64;
-  s7 = x6 * cospi_8_64 + x7 * cospi_24_64;
+  s4 = x4 * (tran_high_t)cospi_8_64 + x5 * (tran_high_t)cospi_24_64;
+  s5 = x4 * (tran_high_t)cospi_24_64 - x5 * (tran_high_t)cospi_8_64;
+  s6 = -x6 * (tran_high_t)cospi_24_64 + x7 * (tran_high_t)cospi_8_64;
+  s7 = x6 * (tran_high_t)cospi_8_64 + x7 * (tran_high_t)cospi_24_64;
   s8 = x8;
   s9 = x9;
   s10 = x10;
   s11 = x11;
-  s12 = x12 * cospi_8_64 + x13 * cospi_24_64;
-  s13 = x12 * cospi_24_64 - x13 * cospi_8_64;
-  s14 = -x14 * cospi_24_64 + x15 * cospi_8_64;
-  s15 = x14 * cospi_8_64 + x15 * cospi_24_64;
+  s12 = x12 * (tran_high_t)cospi_8_64 + x13 * (tran_high_t)cospi_24_64;
+  s13 = x12 * (tran_high_t)cospi_24_64 - x13 * (tran_high_t)cospi_8_64;
+  s14 = -x14 * (tran_high_t)cospi_24_64 + x15 * (tran_high_t)cospi_8_64;
+  s15 = x14 * (tran_high_t)cospi_8_64 + x15 * (tran_high_t)cospi_24_64;
 
   x0 = HIGHBD_WRAPLOW(s0 + s2, bd);
   x1 = HIGHBD_WRAPLOW(s1 + s3, bd);
@@ -1846,14 +1846,14 @@ void vpx_highbd_iadst16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   x15 = HIGHBD_WRAPLOW(dct_const_round_shift(s13 - s15), bd);
 
   // stage 4
-  s2 = (-cospi_16_64) * (x2 + x3);
-  s3 = cospi_16_64 * (x2 - x3);
-  s6 = cospi_16_64 * (x6 + x7);
-  s7 = cospi_16_64 * (-x6 + x7);
-  s10 = cospi_16_64 * (x10 + x11);
-  s11 = cospi_16_64 * (-x10 + x11);
-  s14 = (-cospi_16_64) * (x14 + x15);
-  s15 = cospi_16_64 * (x14 - x15);
+  s2 = (tran_high_t)(-cospi_16_64) * (x2 + x3);
+  s3 = (tran_high_t)cospi_16_64 * (x2 - x3);
+  s6 = (tran_high_t)cospi_16_64 * (x6 + x7);
+  s7 = (tran_high_t)cospi_16_64 * (-x6 + x7);
+  s10 = (tran_high_t)cospi_16_64 * (x10 + x11);
+  s11 = (tran_high_t)cospi_16_64 * (-x10 + x11);
+  s14 = (tran_high_t)(-cospi_16_64) * (x14 + x15);
+  s15 = (tran_high_t)cospi_16_64 * (x14 - x15);
 
   x2 = HIGHBD_WRAPLOW(dct_const_round_shift(s2), bd);
   x3 = HIGHBD_WRAPLOW(dct_const_round_shift(s3), bd);
@@ -1923,23 +1923,31 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   step2[6] = step1[6];
   step2[7] = step1[7];
 
-  temp1 = step1[8] * cospi_30_64 - step1[15] * cospi_2_64;
-  temp2 = step1[8] * cospi_2_64 + step1[15] * cospi_30_64;
+  temp1 =
+      step1[8] * (tran_high_t)cospi_30_64 - step1[15] * (tran_high_t)cospi_2_64;
+  temp2 =
+      step1[8] * (tran_high_t)cospi_2_64 + step1[15] * (tran_high_t)cospi_30_64;
   step2[8] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[15] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = step1[9] * cospi_14_64 - step1[14] * cospi_18_64;
-  temp2 = step1[9] * cospi_18_64 + step1[14] * cospi_14_64;
+  temp1 = step1[9] * (tran_high_t)cospi_14_64 -
+          step1[14] * (tran_high_t)cospi_18_64;
+  temp2 = step1[9] * (tran_high_t)cospi_18_64 +
+          step1[14] * (tran_high_t)cospi_14_64;
   step2[9] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[14] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = step1[10] * cospi_22_64 - step1[13] * cospi_10_64;
-  temp2 = step1[10] * cospi_10_64 + step1[13] * cospi_22_64;
+  temp1 = step1[10] * (tran_high_t)cospi_22_64 -
+          step1[13] * (tran_high_t)cospi_10_64;
+  temp2 = step1[10] * (tran_high_t)cospi_10_64 +
+          step1[13] * (tran_high_t)cospi_22_64;
   step2[10] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[13] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = step1[11] * cospi_6_64 - step1[12] * cospi_26_64;
-  temp2 = step1[11] * cospi_26_64 + step1[12] * cospi_6_64;
+  temp1 = step1[11] * (tran_high_t)cospi_6_64 -
+          step1[12] * (tran_high_t)cospi_26_64;
+  temp2 = step1[11] * (tran_high_t)cospi_26_64 +
+          step1[12] * (tran_high_t)cospi_6_64;
   step2[11] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[12] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -1949,12 +1957,16 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   step1[2] = step2[2];
   step1[3] = step2[3];
 
-  temp1 = step2[4] * cospi_28_64 - step2[7] * cospi_4_64;
-  temp2 = step2[4] * cospi_4_64 + step2[7] * cospi_28_64;
+  temp1 =
+      step2[4] * (tran_high_t)cospi_28_64 - step2[7] * (tran_high_t)cospi_4_64;
+  temp2 =
+      step2[4] * (tran_high_t)cospi_4_64 + step2[7] * (tran_high_t)cospi_28_64;
   step1[4] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[7] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = step2[5] * cospi_12_64 - step2[6] * cospi_20_64;
-  temp2 = step2[5] * cospi_20_64 + step2[6] * cospi_12_64;
+  temp1 =
+      step2[5] * (tran_high_t)cospi_12_64 - step2[6] * (tran_high_t)cospi_20_64;
+  temp2 =
+      step2[5] * (tran_high_t)cospi_20_64 + step2[6] * (tran_high_t)cospi_12_64;
   step1[5] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[6] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -1968,12 +1980,14 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   step1[15] = HIGHBD_WRAPLOW(step2[14] + step2[15], bd);
 
   // stage 4
-  temp1 = (step1[0] + step1[1]) * cospi_16_64;
-  temp2 = (step1[0] - step1[1]) * cospi_16_64;
+  temp1 = (step1[0] + step1[1]) * (tran_high_t)cospi_16_64;
+  temp2 = (step1[0] - step1[1]) * (tran_high_t)cospi_16_64;
   step2[0] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[1] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = step1[2] * cospi_24_64 - step1[3] * cospi_8_64;
-  temp2 = step1[2] * cospi_8_64 + step1[3] * cospi_24_64;
+  temp1 =
+      step1[2] * (tran_high_t)cospi_24_64 - step1[3] * (tran_high_t)cospi_8_64;
+  temp2 =
+      step1[2] * (tran_high_t)cospi_8_64 + step1[3] * (tran_high_t)cospi_24_64;
   step2[2] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[3] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step2[4] = HIGHBD_WRAPLOW(step1[4] + step1[5], bd);
@@ -1983,12 +1997,16 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
 
   step2[8] = step1[8];
   step2[15] = step1[15];
-  temp1 = -step1[9] * cospi_8_64 + step1[14] * cospi_24_64;
-  temp2 = step1[9] * cospi_24_64 + step1[14] * cospi_8_64;
+  temp1 = -step1[9] * (tran_high_t)cospi_8_64 +
+          step1[14] * (tran_high_t)cospi_24_64;
+  temp2 =
+      step1[9] * (tran_high_t)cospi_24_64 + step1[14] * (tran_high_t)cospi_8_64;
   step2[9] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[14] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step1[10] * cospi_24_64 - step1[13] * cospi_8_64;
-  temp2 = -step1[10] * cospi_8_64 + step1[13] * cospi_24_64;
+  temp1 = -step1[10] * (tran_high_t)cospi_24_64 -
+          step1[13] * (tran_high_t)cospi_8_64;
+  temp2 = -step1[10] * (tran_high_t)cospi_8_64 +
+          step1[13] * (tran_high_t)cospi_24_64;
   step2[10] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[13] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step2[11] = step1[11];
@@ -2000,8 +2018,8 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   step1[2] = HIGHBD_WRAPLOW(step2[1] - step2[2], bd);
   step1[3] = HIGHBD_WRAPLOW(step2[0] - step2[3], bd);
   step1[4] = step2[4];
-  temp1 = (step2[6] - step2[5]) * cospi_16_64;
-  temp2 = (step2[5] + step2[6]) * cospi_16_64;
+  temp1 = (step2[6] - step2[5]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[5] + step2[6]) * (tran_high_t)cospi_16_64;
   step1[5] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[6] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[7] = step2[7];
@@ -2026,12 +2044,12 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   step2[7] = HIGHBD_WRAPLOW(step1[0] - step1[7], bd);
   step2[8] = step1[8];
   step2[9] = step1[9];
-  temp1 = (-step1[10] + step1[13]) * cospi_16_64;
-  temp2 = (step1[10] + step1[13]) * cospi_16_64;
+  temp1 = (-step1[10] + step1[13]) * (tran_high_t)cospi_16_64;
+  temp2 = (step1[10] + step1[13]) * (tran_high_t)cospi_16_64;
   step2[10] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[13] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = (-step1[11] + step1[12]) * cospi_16_64;
-  temp2 = (step1[11] + step1[12]) * cospi_16_64;
+  temp1 = (-step1[11] + step1[12]) * (tran_high_t)cospi_16_64;
+  temp2 = (step1[11] + step1[12]) * (tran_high_t)cospi_16_64;
   step2[11] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[12] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step2[14] = step1[14];
@@ -2056,13 +2074,12 @@ void vpx_highbd_idct16_c(const tran_low_t *input, tran_low_t *output, int bd) {
   output[15] = HIGHBD_WRAPLOW(step2[0] - step2[15], bd);
 }
 
-void vpx_highbd_idct16x16_256_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct16x16_256_add_c(const tran_low_t *input, uint16_t *dest,
                                     int stride, int bd) {
   int i, j;
   tran_low_t out[16 * 16];
   tran_low_t *outptr = out;
   tran_low_t temp_in[16], temp_out[16];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // First transform rows
   for (i = 0; i < 16; ++i) {
@@ -2082,13 +2099,12 @@ void vpx_highbd_idct16x16_256_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct16x16_38_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct16x16_38_add_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, int bd) {
   int i, j;
   tran_low_t out[16 * 16] = { 0 };
   tran_low_t *outptr = out;
   tran_low_t temp_in[16], temp_out[16];
-  uint16_t *const dest = CONVERT_TO_SHORTPTR(dest8);
 
   // First transform rows. Since all non-zero dct coefficients are in
   // upper-left 8x8 area, we only need to calculate first 8 rows here.
@@ -2111,13 +2127,12 @@ void vpx_highbd_idct16x16_38_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct16x16_10_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct16x16_10_add_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, int bd) {
   int i, j;
   tran_low_t out[16 * 16] = { 0 };
   tran_low_t *outptr = out;
   tran_low_t temp_in[16], temp_out[16];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // First transform rows. Since all non-zero dct coefficients are in
   // upper-left 4x4 area, we only need to calculate first 4 rows here.
@@ -2138,15 +2153,15 @@ void vpx_highbd_idct16x16_10_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct16x16_1_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct16x16_1_add_c(const tran_low_t *input, uint16_t *dest,
                                   int stride, int bd) {
   int i, j;
   tran_high_t a1;
-  tran_low_t out =
-      HIGHBD_WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64), bd);
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
+  tran_low_t out = HIGHBD_WRAPLOW(
+      dct_const_round_shift(input[0] * (tran_high_t)cospi_16_64), bd);
 
-  out = HIGHBD_WRAPLOW(dct_const_round_shift(out * cospi_16_64), bd);
+  out =
+      HIGHBD_WRAPLOW(dct_const_round_shift(out * (tran_high_t)cospi_16_64), bd);
   a1 = ROUND_POWER_OF_TWO(out, 6);
   for (j = 0; j < 16; ++j) {
     for (i = 0; i < 16; ++i) dest[i] = highbd_clip_pixel_add(dest[i], a1, bd);
@@ -2186,43 +2201,59 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step1[14] = input[14];
   step1[15] = input[30];
 
-  temp1 = input[1] * cospi_31_64 - input[31] * cospi_1_64;
-  temp2 = input[1] * cospi_1_64 + input[31] * cospi_31_64;
+  temp1 =
+      input[1] * (tran_high_t)cospi_31_64 - input[31] * (tran_high_t)cospi_1_64;
+  temp2 =
+      input[1] * (tran_high_t)cospi_1_64 + input[31] * (tran_high_t)cospi_31_64;
   step1[16] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[31] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[17] * cospi_15_64 - input[15] * cospi_17_64;
-  temp2 = input[17] * cospi_17_64 + input[15] * cospi_15_64;
+  temp1 = input[17] * (tran_high_t)cospi_15_64 -
+          input[15] * (tran_high_t)cospi_17_64;
+  temp2 = input[17] * (tran_high_t)cospi_17_64 +
+          input[15] * (tran_high_t)cospi_15_64;
   step1[17] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[30] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[9] * cospi_23_64 - input[23] * cospi_9_64;
-  temp2 = input[9] * cospi_9_64 + input[23] * cospi_23_64;
+  temp1 =
+      input[9] * (tran_high_t)cospi_23_64 - input[23] * (tran_high_t)cospi_9_64;
+  temp2 =
+      input[9] * (tran_high_t)cospi_9_64 + input[23] * (tran_high_t)cospi_23_64;
   step1[18] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[29] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[25] * cospi_7_64 - input[7] * cospi_25_64;
-  temp2 = input[25] * cospi_25_64 + input[7] * cospi_7_64;
+  temp1 =
+      input[25] * (tran_high_t)cospi_7_64 - input[7] * (tran_high_t)cospi_25_64;
+  temp2 =
+      input[25] * (tran_high_t)cospi_25_64 + input[7] * (tran_high_t)cospi_7_64;
   step1[19] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[28] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[5] * cospi_27_64 - input[27] * cospi_5_64;
-  temp2 = input[5] * cospi_5_64 + input[27] * cospi_27_64;
+  temp1 =
+      input[5] * (tran_high_t)cospi_27_64 - input[27] * (tran_high_t)cospi_5_64;
+  temp2 =
+      input[5] * (tran_high_t)cospi_5_64 + input[27] * (tran_high_t)cospi_27_64;
   step1[20] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[27] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[21] * cospi_11_64 - input[11] * cospi_21_64;
-  temp2 = input[21] * cospi_21_64 + input[11] * cospi_11_64;
+  temp1 = input[21] * (tran_high_t)cospi_11_64 -
+          input[11] * (tran_high_t)cospi_21_64;
+  temp2 = input[21] * (tran_high_t)cospi_21_64 +
+          input[11] * (tran_high_t)cospi_11_64;
   step1[21] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[26] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[13] * cospi_19_64 - input[19] * cospi_13_64;
-  temp2 = input[13] * cospi_13_64 + input[19] * cospi_19_64;
+  temp1 = input[13] * (tran_high_t)cospi_19_64 -
+          input[19] * (tran_high_t)cospi_13_64;
+  temp2 = input[13] * (tran_high_t)cospi_13_64 +
+          input[19] * (tran_high_t)cospi_19_64;
   step1[22] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[25] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = input[29] * cospi_3_64 - input[3] * cospi_29_64;
-  temp2 = input[29] * cospi_29_64 + input[3] * cospi_3_64;
+  temp1 =
+      input[29] * (tran_high_t)cospi_3_64 - input[3] * (tran_high_t)cospi_29_64;
+  temp2 =
+      input[29] * (tran_high_t)cospi_29_64 + input[3] * (tran_high_t)cospi_3_64;
   step1[23] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[24] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -2236,23 +2267,31 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step2[6] = step1[6];
   step2[7] = step1[7];
 
-  temp1 = step1[8] * cospi_30_64 - step1[15] * cospi_2_64;
-  temp2 = step1[8] * cospi_2_64 + step1[15] * cospi_30_64;
+  temp1 =
+      step1[8] * (tran_high_t)cospi_30_64 - step1[15] * (tran_high_t)cospi_2_64;
+  temp2 =
+      step1[8] * (tran_high_t)cospi_2_64 + step1[15] * (tran_high_t)cospi_30_64;
   step2[8] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[15] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = step1[9] * cospi_14_64 - step1[14] * cospi_18_64;
-  temp2 = step1[9] * cospi_18_64 + step1[14] * cospi_14_64;
+  temp1 = step1[9] * (tran_high_t)cospi_14_64 -
+          step1[14] * (tran_high_t)cospi_18_64;
+  temp2 = step1[9] * (tran_high_t)cospi_18_64 +
+          step1[14] * (tran_high_t)cospi_14_64;
   step2[9] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[14] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = step1[10] * cospi_22_64 - step1[13] * cospi_10_64;
-  temp2 = step1[10] * cospi_10_64 + step1[13] * cospi_22_64;
+  temp1 = step1[10] * (tran_high_t)cospi_22_64 -
+          step1[13] * (tran_high_t)cospi_10_64;
+  temp2 = step1[10] * (tran_high_t)cospi_10_64 +
+          step1[13] * (tran_high_t)cospi_22_64;
   step2[10] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[13] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
-  temp1 = step1[11] * cospi_6_64 - step1[12] * cospi_26_64;
-  temp2 = step1[11] * cospi_26_64 + step1[12] * cospi_6_64;
+  temp1 = step1[11] * (tran_high_t)cospi_6_64 -
+          step1[12] * (tran_high_t)cospi_26_64;
+  temp2 = step1[11] * (tran_high_t)cospi_26_64 +
+          step1[12] * (tran_high_t)cospi_6_64;
   step2[11] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[12] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -2279,12 +2318,16 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step1[2] = step2[2];
   step1[3] = step2[3];
 
-  temp1 = step2[4] * cospi_28_64 - step2[7] * cospi_4_64;
-  temp2 = step2[4] * cospi_4_64 + step2[7] * cospi_28_64;
+  temp1 =
+      step2[4] * (tran_high_t)cospi_28_64 - step2[7] * (tran_high_t)cospi_4_64;
+  temp2 =
+      step2[4] * (tran_high_t)cospi_4_64 + step2[7] * (tran_high_t)cospi_28_64;
   step1[4] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[7] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = step2[5] * cospi_12_64 - step2[6] * cospi_20_64;
-  temp2 = step2[5] * cospi_20_64 + step2[6] * cospi_12_64;
+  temp1 =
+      step2[5] * (tran_high_t)cospi_12_64 - step2[6] * (tran_high_t)cospi_20_64;
+  temp2 =
+      step2[5] * (tran_high_t)cospi_20_64 + step2[6] * (tran_high_t)cospi_12_64;
   step1[5] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[6] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
 
@@ -2299,22 +2342,30 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
 
   step1[16] = step2[16];
   step1[31] = step2[31];
-  temp1 = -step2[17] * cospi_4_64 + step2[30] * cospi_28_64;
-  temp2 = step2[17] * cospi_28_64 + step2[30] * cospi_4_64;
+  temp1 = -step2[17] * (tran_high_t)cospi_4_64 +
+          step2[30] * (tran_high_t)cospi_28_64;
+  temp2 = step2[17] * (tran_high_t)cospi_28_64 +
+          step2[30] * (tran_high_t)cospi_4_64;
   step1[17] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[30] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step2[18] * cospi_28_64 - step2[29] * cospi_4_64;
-  temp2 = -step2[18] * cospi_4_64 + step2[29] * cospi_28_64;
+  temp1 = -step2[18] * (tran_high_t)cospi_28_64 -
+          step2[29] * (tran_high_t)cospi_4_64;
+  temp2 = -step2[18] * (tran_high_t)cospi_4_64 +
+          step2[29] * (tran_high_t)cospi_28_64;
   step1[18] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[29] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[19] = step2[19];
   step1[20] = step2[20];
-  temp1 = -step2[21] * cospi_20_64 + step2[26] * cospi_12_64;
-  temp2 = step2[21] * cospi_12_64 + step2[26] * cospi_20_64;
+  temp1 = -step2[21] * (tran_high_t)cospi_20_64 +
+          step2[26] * (tran_high_t)cospi_12_64;
+  temp2 = step2[21] * (tran_high_t)cospi_12_64 +
+          step2[26] * (tran_high_t)cospi_20_64;
   step1[21] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[26] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step2[22] * cospi_12_64 - step2[25] * cospi_20_64;
-  temp2 = -step2[22] * cospi_20_64 + step2[25] * cospi_12_64;
+  temp1 = -step2[22] * (tran_high_t)cospi_12_64 -
+          step2[25] * (tran_high_t)cospi_20_64;
+  temp2 = -step2[22] * (tran_high_t)cospi_20_64 +
+          step2[25] * (tran_high_t)cospi_12_64;
   step1[22] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[25] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[23] = step2[23];
@@ -2323,12 +2374,14 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step1[28] = step2[28];
 
   // stage 4
-  temp1 = (step1[0] + step1[1]) * cospi_16_64;
-  temp2 = (step1[0] - step1[1]) * cospi_16_64;
+  temp1 = (step1[0] + step1[1]) * (tran_high_t)cospi_16_64;
+  temp2 = (step1[0] - step1[1]) * (tran_high_t)cospi_16_64;
   step2[0] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[1] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = step1[2] * cospi_24_64 - step1[3] * cospi_8_64;
-  temp2 = step1[2] * cospi_8_64 + step1[3] * cospi_24_64;
+  temp1 =
+      step1[2] * (tran_high_t)cospi_24_64 - step1[3] * (tran_high_t)cospi_8_64;
+  temp2 =
+      step1[2] * (tran_high_t)cospi_8_64 + step1[3] * (tran_high_t)cospi_24_64;
   step2[2] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[3] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step2[4] = HIGHBD_WRAPLOW(step1[4] + step1[5], bd);
@@ -2338,12 +2391,16 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
 
   step2[8] = step1[8];
   step2[15] = step1[15];
-  temp1 = -step1[9] * cospi_8_64 + step1[14] * cospi_24_64;
-  temp2 = step1[9] * cospi_24_64 + step1[14] * cospi_8_64;
+  temp1 = -step1[9] * (tran_high_t)cospi_8_64 +
+          step1[14] * (tran_high_t)cospi_24_64;
+  temp2 =
+      step1[9] * (tran_high_t)cospi_24_64 + step1[14] * (tran_high_t)cospi_8_64;
   step2[9] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[14] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step1[10] * cospi_24_64 - step1[13] * cospi_8_64;
-  temp2 = -step1[10] * cospi_8_64 + step1[13] * cospi_24_64;
+  temp1 = -step1[10] * (tran_high_t)cospi_24_64 -
+          step1[13] * (tran_high_t)cospi_8_64;
+  temp2 = -step1[10] * (tran_high_t)cospi_8_64 +
+          step1[13] * (tran_high_t)cospi_24_64;
   step2[10] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[13] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step2[11] = step1[11];
@@ -2373,8 +2430,8 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step1[2] = HIGHBD_WRAPLOW(step2[1] - step2[2], bd);
   step1[3] = HIGHBD_WRAPLOW(step2[0] - step2[3], bd);
   step1[4] = step2[4];
-  temp1 = (step2[6] - step2[5]) * cospi_16_64;
-  temp2 = (step2[5] + step2[6]) * cospi_16_64;
+  temp1 = (step2[6] - step2[5]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[5] + step2[6]) * (tran_high_t)cospi_16_64;
   step1[5] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[6] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[7] = step2[7];
@@ -2390,20 +2447,28 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
 
   step1[16] = step2[16];
   step1[17] = step2[17];
-  temp1 = -step2[18] * cospi_8_64 + step2[29] * cospi_24_64;
-  temp2 = step2[18] * cospi_24_64 + step2[29] * cospi_8_64;
+  temp1 = -step2[18] * (tran_high_t)cospi_8_64 +
+          step2[29] * (tran_high_t)cospi_24_64;
+  temp2 = step2[18] * (tran_high_t)cospi_24_64 +
+          step2[29] * (tran_high_t)cospi_8_64;
   step1[18] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[29] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step2[19] * cospi_8_64 + step2[28] * cospi_24_64;
-  temp2 = step2[19] * cospi_24_64 + step2[28] * cospi_8_64;
+  temp1 = -step2[19] * (tran_high_t)cospi_8_64 +
+          step2[28] * (tran_high_t)cospi_24_64;
+  temp2 = step2[19] * (tran_high_t)cospi_24_64 +
+          step2[28] * (tran_high_t)cospi_8_64;
   step1[19] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[28] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step2[20] * cospi_24_64 - step2[27] * cospi_8_64;
-  temp2 = -step2[20] * cospi_8_64 + step2[27] * cospi_24_64;
+  temp1 = -step2[20] * (tran_high_t)cospi_24_64 -
+          step2[27] * (tran_high_t)cospi_8_64;
+  temp2 = -step2[20] * (tran_high_t)cospi_8_64 +
+          step2[27] * (tran_high_t)cospi_24_64;
   step1[20] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[27] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = -step2[21] * cospi_24_64 - step2[26] * cospi_8_64;
-  temp2 = -step2[21] * cospi_8_64 + step2[26] * cospi_24_64;
+  temp1 = -step2[21] * (tran_high_t)cospi_24_64 -
+          step2[26] * (tran_high_t)cospi_8_64;
+  temp2 = -step2[21] * (tran_high_t)cospi_8_64 +
+          step2[26] * (tran_high_t)cospi_24_64;
   step1[21] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[26] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[22] = step2[22];
@@ -2424,12 +2489,12 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step2[7] = HIGHBD_WRAPLOW(step1[0] - step1[7], bd);
   step2[8] = step1[8];
   step2[9] = step1[9];
-  temp1 = (-step1[10] + step1[13]) * cospi_16_64;
-  temp2 = (step1[10] + step1[13]) * cospi_16_64;
+  temp1 = (-step1[10] + step1[13]) * (tran_high_t)cospi_16_64;
+  temp2 = (step1[10] + step1[13]) * (tran_high_t)cospi_16_64;
   step2[10] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[13] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = (-step1[11] + step1[12]) * cospi_16_64;
-  temp2 = (step1[11] + step1[12]) * cospi_16_64;
+  temp1 = (-step1[11] + step1[12]) * (tran_high_t)cospi_16_64;
+  temp2 = (step1[11] + step1[12]) * (tran_high_t)cospi_16_64;
   step2[11] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step2[12] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step2[14] = step1[14];
@@ -2475,20 +2540,20 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   step1[17] = step2[17];
   step1[18] = step2[18];
   step1[19] = step2[19];
-  temp1 = (-step2[20] + step2[27]) * cospi_16_64;
-  temp2 = (step2[20] + step2[27]) * cospi_16_64;
+  temp1 = (-step2[20] + step2[27]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[20] + step2[27]) * (tran_high_t)cospi_16_64;
   step1[20] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[27] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = (-step2[21] + step2[26]) * cospi_16_64;
-  temp2 = (step2[21] + step2[26]) * cospi_16_64;
+  temp1 = (-step2[21] + step2[26]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[21] + step2[26]) * (tran_high_t)cospi_16_64;
   step1[21] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[26] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = (-step2[22] + step2[25]) * cospi_16_64;
-  temp2 = (step2[22] + step2[25]) * cospi_16_64;
+  temp1 = (-step2[22] + step2[25]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[22] + step2[25]) * (tran_high_t)cospi_16_64;
   step1[22] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[25] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
-  temp1 = (-step2[23] + step2[24]) * cospi_16_64;
-  temp2 = (step2[23] + step2[24]) * cospi_16_64;
+  temp1 = (-step2[23] + step2[24]) * (tran_high_t)cospi_16_64;
+  temp2 = (step2[23] + step2[24]) * (tran_high_t)cospi_16_64;
   step1[23] = HIGHBD_WRAPLOW(dct_const_round_shift(temp1), bd);
   step1[24] = HIGHBD_WRAPLOW(dct_const_round_shift(temp2), bd);
   step1[28] = step2[28];
@@ -2531,26 +2596,19 @@ static void highbd_idct32_c(const tran_low_t *input, tran_low_t *output,
   output[31] = HIGHBD_WRAPLOW(step1[0] - step1[31], bd);
 }
 
-void vpx_highbd_idct32x32_1024_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct32x32_1024_add_c(const tran_low_t *input, uint16_t *dest,
                                      int stride, int bd) {
   int i, j;
   tran_low_t out[32 * 32];
   tran_low_t *outptr = out;
   tran_low_t temp_in[32], temp_out[32];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // Rows
   for (i = 0; i < 32; ++i) {
-    tran_low_t zero_coeff[16];
-    for (j = 0; j < 16; ++j) zero_coeff[j] = input[2 * j] | input[2 * j + 1];
-    for (j = 0; j < 8; ++j)
-      zero_coeff[j] = zero_coeff[2 * j] | zero_coeff[2 * j + 1];
-    for (j = 0; j < 4; ++j)
-      zero_coeff[j] = zero_coeff[2 * j] | zero_coeff[2 * j + 1];
-    for (j = 0; j < 2; ++j)
-      zero_coeff[j] = zero_coeff[2 * j] | zero_coeff[2 * j + 1];
+    tran_low_t zero_coeff = 0;
+    for (j = 0; j < 32; ++j) zero_coeff |= input[j];
 
-    if (zero_coeff[0] | zero_coeff[1])
+    if (zero_coeff)
       highbd_idct32_c(input, outptr, bd);
     else
       memset(outptr, 0, sizeof(tran_low_t) * 32);
@@ -2569,13 +2627,40 @@ void vpx_highbd_idct32x32_1024_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct32x32_34_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct32x32_135_add_c(const tran_low_t *input, uint16_t *dest,
+                                    int stride, int bd) {
+  int i, j;
+  tran_low_t out[32 * 32] = { 0 };
+  tran_low_t *outptr = out;
+  tran_low_t temp_in[32], temp_out[32];
+
+  // Rows
+  // Only upper-left 16x16 has non-zero coeff
+  for (i = 0; i < 16; ++i) {
+    highbd_idct32_c(input, outptr, bd);
+    input += 32;
+    outptr += 32;
+  }
+
+  // Columns
+  for (i = 0; i < 32; ++i) {
+    uint16_t *destT = dest;
+    for (j = 0; j < 32; ++j) temp_in[j] = out[j * 32 + i];
+    highbd_idct32_c(temp_in, temp_out, bd);
+    for (j = 0; j < 32; ++j) {
+      destT[i] = highbd_clip_pixel_add(destT[i],
+                                       ROUND_POWER_OF_TWO(temp_out[j], 6), bd);
+      destT += stride;
+    }
+  }
+}
+
+void vpx_highbd_idct32x32_34_add_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, int bd) {
   int i, j;
   tran_low_t out[32 * 32] = { 0 };
   tran_low_t *outptr = out;
   tran_low_t temp_in[32], temp_out[32];
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   // Rows
   // Only upper-left 8x8 has non-zero coeff
@@ -2596,15 +2681,15 @@ void vpx_highbd_idct32x32_34_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void vpx_highbd_idct32x32_1_add_c(const tran_low_t *input, uint8_t *dest8,
+void vpx_highbd_idct32x32_1_add_c(const tran_low_t *input, uint16_t *dest,
                                   int stride, int bd) {
   int i, j;
   int a1;
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
-  tran_low_t out =
-      HIGHBD_WRAPLOW(dct_const_round_shift(input[0] * cospi_16_64), bd);
+  tran_low_t out = HIGHBD_WRAPLOW(
+      dct_const_round_shift(input[0] * (tran_high_t)cospi_16_64), bd);
 
-  out = HIGHBD_WRAPLOW(dct_const_round_shift(out * cospi_16_64), bd);
+  out =
+      HIGHBD_WRAPLOW(dct_const_round_shift(out * (tran_high_t)cospi_16_64), bd);
   a1 = ROUND_POWER_OF_TWO(out, 6);
 
   for (j = 0; j < 32; ++j) {

@@ -12,6 +12,7 @@
 
 #include "./vpx_dsp_rtcd.h"
 #include "vpx_dsp/arm/idct_neon.h"
+#include "vpx_dsp/arm/mem_neon.h"
 #include "vpx_dsp/txfm_common.h"
 
 static INLINE void wrap_low_4x2(const int32x4_t *const t32, int16x4_t *const d0,
@@ -62,74 +63,15 @@ static INLINE void idct_cospi_16_16_d(const int16x4_t s0, const int16x4_t s1,
   wrap_low_4x2(t32, d0, d1);
 }
 
-static INLINE void idct16x16_add_store(const int16x8_t *const out,
-                                       uint8_t *dest, const int stride) {
-  // Add the result to dest
-  idct16x16_add8x1(out[0], &dest, stride);
-  idct16x16_add8x1(out[1], &dest, stride);
-  idct16x16_add8x1(out[2], &dest, stride);
-  idct16x16_add8x1(out[3], &dest, stride);
-  idct16x16_add8x1(out[4], &dest, stride);
-  idct16x16_add8x1(out[5], &dest, stride);
-  idct16x16_add8x1(out[6], &dest, stride);
-  idct16x16_add8x1(out[7], &dest, stride);
-  idct16x16_add8x1(out[8], &dest, stride);
-  idct16x16_add8x1(out[9], &dest, stride);
-  idct16x16_add8x1(out[10], &dest, stride);
-  idct16x16_add8x1(out[11], &dest, stride);
-  idct16x16_add8x1(out[12], &dest, stride);
-  idct16x16_add8x1(out[13], &dest, stride);
-  idct16x16_add8x1(out[14], &dest, stride);
-  idct16x16_add8x1(out[15], &dest, stride);
-}
-
-static INLINE void idct16x16_add_store_bd8(int16x8_t *const out, uint16_t *dest,
-                                           const int stride) {
-  // Add the result to dest
-  const int16x8_t max = vdupq_n_s16((1 << 8) - 1);
-  out[0] = vrshrq_n_s16(out[0], 6);
-  out[1] = vrshrq_n_s16(out[1], 6);
-  out[2] = vrshrq_n_s16(out[2], 6);
-  out[3] = vrshrq_n_s16(out[3], 6);
-  out[4] = vrshrq_n_s16(out[4], 6);
-  out[5] = vrshrq_n_s16(out[5], 6);
-  out[6] = vrshrq_n_s16(out[6], 6);
-  out[7] = vrshrq_n_s16(out[7], 6);
-  out[8] = vrshrq_n_s16(out[8], 6);
-  out[9] = vrshrq_n_s16(out[9], 6);
-  out[10] = vrshrq_n_s16(out[10], 6);
-  out[11] = vrshrq_n_s16(out[11], 6);
-  out[12] = vrshrq_n_s16(out[12], 6);
-  out[13] = vrshrq_n_s16(out[13], 6);
-  out[14] = vrshrq_n_s16(out[14], 6);
-  out[15] = vrshrq_n_s16(out[15], 6);
-  highbd_idct16x16_add8x1(out[0], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[1], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[2], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[3], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[4], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[5], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[6], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[7], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[8], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[9], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[10], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[11], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[12], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[13], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[14], max, &dest, stride);
-  highbd_idct16x16_add8x1(out[15], max, &dest, stride);
-}
-
-void idct16x16_256_add_half1d(const void *const input, int16_t *output,
-                              void *const dest, const int stride,
-                              const int highbd_flag) {
+void vpx_idct16x16_256_add_half1d(const void *const input, int16_t *output,
+                                  void *const dest, const int stride,
+                                  const int highbd_flag) {
   const int16x8_t cospis0 = vld1q_s16(kCospi);
   const int16x8_t cospis1 = vld1q_s16(kCospi + 8);
   const int16x4_t cospi_0_8_16_24 = vget_low_s16(cospis0);
   const int16x4_t cospi_4_12_20N_28 = vget_high_s16(cospis0);
   const int16x4_t cospi_2_30_10_22 = vget_low_s16(cospis1);
-  const int16x4_t cospi_6_26_14_18N = vget_high_s16(cospis1);
+  const int16x4_t cospi_6_26N_14_18N = vget_high_s16(cospis1);
   int16x8_t in[16], step1[16], step2[16], out[16];
 
   // Load input (16x8)
@@ -235,11 +177,11 @@ void idct16x16_256_add_half1d(const void *const input, int16_t *output,
   step2[6] = step1[6];
   step2[7] = step1[7];
   idct_cospi_2_30(step1[8], step1[15], cospi_2_30_10_22, &step2[8], &step2[15]);
-  idct_cospi_14_18(step1[9], step1[14], cospi_6_26_14_18N, &step2[9],
+  idct_cospi_14_18(step1[9], step1[14], cospi_6_26N_14_18N, &step2[9],
                    &step2[14]);
   idct_cospi_10_22(step1[10], step1[13], cospi_2_30_10_22, &step2[10],
                    &step2[13]);
-  idct_cospi_6_26(step1[11], step1[12], cospi_6_26_14_18N, &step2[11],
+  idct_cospi_6_26(step1[11], step1[12], cospi_6_26N_14_18N, &step2[11],
                   &step2[12]);
 
   // stage 3
@@ -323,9 +265,9 @@ void idct16x16_256_add_half1d(const void *const input, int16_t *output,
   }
 }
 
-void idct16x16_38_add_half1d(const void *const input, int16_t *const output,
-                             void *const dest, const int stride,
-                             const int highbd_flag) {
+void vpx_idct16x16_38_add_half1d(const void *const input, int16_t *const output,
+                                 void *const dest, const int stride,
+                                 const int highbd_flag) {
   const int16x8_t cospis0 = vld1q_s16(kCospi);
   const int16x8_t cospis1 = vld1q_s16(kCospi + 8);
   const int16x8_t cospisd0 = vaddq_s16(cospis0, cospis0);
@@ -484,7 +426,8 @@ void idct16x16_38_add_half1d(const void *const input, int16_t *const output,
   }
 }
 
-void idct16x16_10_add_half1d_pass1(const tran_low_t *input, int16_t *output) {
+void vpx_idct16x16_10_add_half1d_pass1(const tran_low_t *input,
+                                       int16_t *output) {
   const int16x8_t cospis0 = vld1q_s16(kCospi);
   const int16x8_t cospis1 = vld1q_s16(kCospi + 8);
   const int16x8_t cospisd0 = vaddq_s16(cospis0, cospis0);
@@ -637,9 +580,10 @@ void idct16x16_10_add_half1d_pass1(const tran_low_t *input, int16_t *output) {
   vst1_s16(output, out[15]);
 }
 
-void idct16x16_10_add_half1d_pass2(const int16_t *input, int16_t *const output,
-                                   void *const dest, const int stride,
-                                   const int highbd_flag) {
+void vpx_idct16x16_10_add_half1d_pass2(const int16_t *input,
+                                       int16_t *const output, void *const dest,
+                                       const int stride,
+                                       const int highbd_flag) {
   const int16x8_t cospis0 = vld1q_s16(kCospi);
   const int16x8_t cospis1 = vld1q_s16(kCospi + 8);
   const int16x8_t cospisd0 = vaddq_s16(cospis0, cospis0);
@@ -770,18 +714,19 @@ void vpx_idct16x16_256_add_neon(const tran_low_t *input, uint8_t *dest,
 
   // pass 1
   // Parallel idct on the upper 8 rows
-  idct16x16_256_add_half1d(input, row_idct_output, dest, stride, 0);
+  vpx_idct16x16_256_add_half1d(input, row_idct_output, dest, stride, 0);
 
   // Parallel idct on the lower 8 rows
-  idct16x16_256_add_half1d(input + 8 * 16, row_idct_output + 8, dest, stride,
-                           0);
+  vpx_idct16x16_256_add_half1d(input + 8 * 16, row_idct_output + 8, dest,
+                               stride, 0);
 
   // pass 2
   // Parallel idct to get the left 8 columns
-  idct16x16_256_add_half1d(row_idct_output, NULL, dest, stride, 0);
+  vpx_idct16x16_256_add_half1d(row_idct_output, NULL, dest, stride, 0);
 
   // Parallel idct to get the right 8 columns
-  idct16x16_256_add_half1d(row_idct_output + 16 * 8, NULL, dest + 8, stride, 0);
+  vpx_idct16x16_256_add_half1d(row_idct_output + 16 * 8, NULL, dest + 8, stride,
+                               0);
 }
 
 void vpx_idct16x16_38_add_neon(const tran_low_t *input, uint8_t *dest,
@@ -790,14 +735,15 @@ void vpx_idct16x16_38_add_neon(const tran_low_t *input, uint8_t *dest,
 
   // pass 1
   // Parallel idct on the upper 8 rows
-  idct16x16_38_add_half1d(input, row_idct_output, dest, stride, 0);
+  vpx_idct16x16_38_add_half1d(input, row_idct_output, dest, stride, 0);
 
   // pass 2
   // Parallel idct to get the left 8 columns
-  idct16x16_38_add_half1d(row_idct_output, NULL, dest, stride, 0);
+  vpx_idct16x16_38_add_half1d(row_idct_output, NULL, dest, stride, 0);
 
   // Parallel idct to get the right 8 columns
-  idct16x16_38_add_half1d(row_idct_output + 16 * 8, NULL, dest + 8, stride, 0);
+  vpx_idct16x16_38_add_half1d(row_idct_output + 16 * 8, NULL, dest + 8, stride,
+                              0);
 }
 
 void vpx_idct16x16_10_add_neon(const tran_low_t *input, uint8_t *dest,
@@ -806,13 +752,13 @@ void vpx_idct16x16_10_add_neon(const tran_low_t *input, uint8_t *dest,
 
   // pass 1
   // Parallel idct on the upper 8 rows
-  idct16x16_10_add_half1d_pass1(input, row_idct_output);
+  vpx_idct16x16_10_add_half1d_pass1(input, row_idct_output);
 
   // pass 2
   // Parallel idct to get the left 8 columns
-  idct16x16_10_add_half1d_pass2(row_idct_output, NULL, dest, stride, 0);
+  vpx_idct16x16_10_add_half1d_pass2(row_idct_output, NULL, dest, stride, 0);
 
   // Parallel idct to get the right 8 columns
-  idct16x16_10_add_half1d_pass2(row_idct_output + 4 * 8, NULL, dest + 8, stride,
-                                0);
+  vpx_idct16x16_10_add_half1d_pass2(row_idct_output + 4 * 8, NULL, dest + 8,
+                                    stride, 0);
 }
