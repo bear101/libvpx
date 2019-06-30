@@ -118,6 +118,12 @@ typedef struct VP8D_COMP {
 
   vpx_decrypt_cb decrypt_cb;
   void *decrypt_state;
+#if CONFIG_MULTITHREAD
+  // Restart threads on next frame if set to 1.
+  // This is set when error happens in multithreaded decoding and all threads
+  // are shut down.
+  int restart_threads;
+#endif
 } VP8D_COMP;
 
 void vp8cx_init_de_quantizer(VP8D_COMP *pbi);
@@ -130,8 +136,8 @@ int vp8_remove_decoder_instances(struct frame_buffers *fb);
 #if CONFIG_DEBUG
 #define CHECK_MEM_ERROR(lval, expr)                                         \
   do {                                                                      \
-    lval = (expr);                                                          \
-    if (!lval)                                                              \
+    (lval) = (expr);                                                        \
+    if (!(lval))                                                            \
       vpx_internal_error(&pbi->common.error, VPX_CODEC_MEM_ERROR,           \
                          "Failed to allocate " #lval " at %s:%d", __FILE__, \
                          __LINE__);                                         \
@@ -139,8 +145,8 @@ int vp8_remove_decoder_instances(struct frame_buffers *fb);
 #else
 #define CHECK_MEM_ERROR(lval, expr)                               \
   do {                                                            \
-    lval = (expr);                                                \
-    if (!lval)                                                    \
+    (lval) = (expr);                                              \
+    if (!(lval))                                                  \
       vpx_internal_error(&pbi->common.error, VPX_CODEC_MEM_ERROR, \
                          "Failed to allocate " #lval);            \
   } while (0)
